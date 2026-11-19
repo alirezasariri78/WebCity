@@ -1,0 +1,151 @@
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  z-index: 20;
+  position: relative;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 24px -10px rgba(30, 30, 80, 0.3);
+}
+.town-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.2rem;
+  max-width: 260px;
+}
+.town-name:hover {
+  background: rgba(124, 92, 255, 0.08);
+}
+.town-name .logo {
+  font-size: 1.6rem;
+}
+.town-name .tn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.town-name .edit {
+  font-size: 0.8rem;
+  opacity: 0.45;
+}
+.lvl {
+  display: flex;
+  align-items: center;
+}
+.lvl-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a28bff, var(--violet-d));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  line-height: 0.9;
+  text-align: center;
+  z-index: 1;
+  box-shadow:
+    0 3px 0 #4a2fc9,
+    0 0 0 3px #fff;
+  position: relative;
+}
+.lvl-badge small {
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  display: block;
+  opacity: 0.85;
+}
+.lvl-badge b {
+  font-size: 1.2rem;
+  display: block;
+}
+.lvl-bar {
+  width: 150px;
+  height: 22px;
+  background: #ece9ff;
+  border-radius: 0 12px 12px 0;
+  margin-left: -10px;
+  position: relative;
+  overflow: hidden;
+}
+.lvl-bar i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #a28bff, #7c5cff);
+  border-radius: 0 12px 12px 0;
+  transition: transform 0.6s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.lvl-bar span {
+  position: relative;
+  display: block;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 22px;
+  padding-left: 8px;
+  color: var(--ink);
+}
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  background: #fff;
+  padding: 7px 12px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  font-size: 1.05rem;
+}
+.stat small {
+  color: var(--ink-2);
+  font-size: 0.75rem;
+}
+.stat.coins b {
+  color: var(--gold-d);
+  min-width: 2ch;
+}
+.stat.coins.up {
+  animation: bump 0.4s;
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+.stat.coins.down {
+  animation: shake 0.3s;
+}
+@keyframes bump {
+  50% {
+    transform: scale(1.15);
+  }
+}
+@keyframes shake {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+.stars i {
+  font-style: normal;
+  color: #ddd;
+  font-size: 1.05rem;
+}
+.stars i.on {
+  color: var(--gold);
+}
+.stars i.half {
+  background: linear-gradient(90deg, var(--gold) 50%, #ddd 50%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.spacer {
+  flex: 1;
+}

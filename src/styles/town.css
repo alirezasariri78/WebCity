@@ -1,0 +1,261 @@
+.stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+.view {
+  position: absolute;
+  inset: 0;
+}
+.view[hidden] {
+  display: none;
+}
+.town-view {
+  --water-a: #6ec6f0;
+  --water-b: #3a9bd9;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.35), transparent 60%),
+    repeating-linear-gradient(160deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 38px),
+    linear-gradient(180deg, var(--water-a), var(--water-b));
+  transition: background 0.6s;
+  contain: strict;
+}
+.town-view.night {
+  background: radial-gradient(ellipse at 50% 30%, #2a3570, transparent 70%), linear-gradient(180deg, var(--water-a), var(--water-b));
+}
+.town-view.night::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10% 20%, #fff, transparent), radial-gradient(1px 1px at 30% 70%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 70% 15%, #fff, transparent), radial-gradient(1px 1px at 85% 60%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 55% 40%, #fff, transparent), radial-gradient(1px 1px at 20% 90%, #fff, transparent);
+  animation: twinkle 4s ease-in-out infinite;
+}
+@keyframes twinkle {
+  50% {
+    opacity: 0.4;
+  }
+}
+.town-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  z-index: 1;
+}
+.panning .town-canvas {
+  cursor: grabbing !important;
+}
+.placing .town-canvas {
+  cursor: crosshair !important;
+}
+.pop-lv {
+  color: var(--gold);
+  font-size: 0.9rem;
+  letter-spacing: -1px;
+}
+.pop-max,
+.pop-lock {
+  font-size: 0.82rem;
+  text-align: center;
+  color: var(--ink-2);
+  background: #f6f6fb;
+  border-radius: 10px;
+  padding: 6px;
+}
+.btn.upgrade {
+  background: linear-gradient(180deg, #ffe07a, var(--gold));
+  box-shadow: 0 3px 0 var(--gold-d);
+}
+.btn.upgrade.poor {
+  filter: grayscale(0.6);
+  opacity: 0.75;
+}
+.slots {
+  margin-left: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 8px;
+  border-radius: 8px;
+  color: var(--ink);
+}
+.slots.full {
+  background: #ffe1e1;
+  color: #d63c3c;
+}
+.sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.cloud {
+  position: absolute;
+  width: 180px;
+  height: 56px;
+  background: #fff;
+  border-radius: 60px;
+  opacity: 0.75;
+  left: 0;
+  will-change: transform;
+  animation: drift linear infinite;
+}
+.cloud::before,
+.cloud::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+}
+.cloud::before {
+  width: 80px;
+  height: 80px;
+  top: -38px;
+  left: 28px;
+}
+.cloud::after {
+  width: 100px;
+  height: 100px;
+  top: -52px;
+  right: 22px;
+}
+.c1 {
+  top: 8%;
+  animation-duration: 80s;
+  animation-delay: -20s;
+}
+.c2 {
+  top: 30%;
+  animation-duration: 110s;
+  animation-delay: -70s;
+  scale: 0.7;
+  opacity: 0.6;
+}
+.c3 {
+  top: 62%;
+  animation-duration: 95s;
+  animation-delay: -40s;
+  scale: 0.85;
+}
+.c4 {
+  top: 80%;
+  animation-duration: 130s;
+  animation-delay: -100s;
+  scale: 0.6;
+  opacity: 0.5;
+}
+.night .cloud {
+  opacity: 0.12;
+}
+@keyframes drift {
+  from {
+    transform: translateX(-260px);
+  }
+  to {
+    transform: translateX(110vw);
+  }
+}
+
+@keyframes popin {
+  0% {
+    transform: scale(0.1) translateY(-40px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.map-tools {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 5;
+}
+.place-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  padding: 10px 10px 10px 18px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 6;
+  box-shadow: var(--shadow);
+  animation: slidedown 0.3s;
+  white-space: nowrap;
+}
+.place-hint[hidden] {
+  display: none;
+}
+.place-hint .btn {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+}
+@keyframes slidedown {
+  from {
+    transform: translate(-50%, -20px);
+    opacity: 0;
+  }
+}
+
+.popover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 8;
+  width: 270px;
+  background: #fff;
+  border-radius: var(--r);
+  padding: 14px;
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 10px;
+}
+.popover[hidden] {
+  display: none;
+}
+.popover.in {
+  animation: popov 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.popover::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  margin-left: -8px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  transform: rotate(45deg);
+  border-radius: 3px;
+}
+@keyframes popov {
+  from {
+    transform: scale(0.85) translateY(-6px);
+    opacity: 0;
+  }
+}
+.pop-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.pop-sub {
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  margin-top: -6px;
+}

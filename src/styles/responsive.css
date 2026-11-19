@@ -1,0 +1,76 @@
+@media (max-width: 1150px) {
+  .int-body {
+    grid-template-columns: 190px 1fr 340px;
+  }
+  .studio-body {
+    grid-template-columns: 340px 1fr;
+  }
+  .center-hint {
+    display: none;
+  }
+  .lvl-bar {
+    width: 100px;
+  }
+  .visitors {
+    display: none;
+  }
+}
+@media (max-width: 860px) {
+  .hud {
+    gap: 8px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+  .town-name {
+    font-size: 1rem;
+    max-width: 160px;
+  }
+  .hide-sm {
+    display: none;
+  }
+  .rating {
+    display: none;
+  }
+  .quest-card {
+    width: calc(100% - 90px);
+    top: 10px;
+    left: 10px;
+    padding: 10px;
+  }
+  .q-desc {
+    font-size: 0.8rem;
+  }
+  .map-tools {
+    top: auto;
+    bottom: 90px;
+    right: 10px;
+  }
+  .int-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .int-body > * {
+    flex: 0 0 auto;
+  }
+  .palette {
+    max-height: 220px;
+  }
+  .room,
+  .live {
+    min-height: 460px;
+  }
+  .studio-body {
+    grid-template-columns: 1fr;
+  }
+  .studio-preview {
+    min-height: 300px;
+  }
+  .int-top {
+    flex-wrap: wrap;
+  }
+  .card-btn {
+    width: 110px;
+  }
+}

@@ -1,0 +1,75 @@
+.fx-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 200;
+}
+.float-text {
+  position: fixed;
+  z-index: 210;
+  pointer-events: none;
+  font-weight: 700;
+  font-size: 1.35rem;
+  transform: translate(-50%, 0);
+  -webkit-text-stroke: 4px #fff;
+  paint-order: stroke fill;
+  animation: floatup 1.3s cubic-bezier(0.2, 0.9, 0.4, 1) forwards;
+  white-space: nowrap;
+}
+@keyframes floatup {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -8px) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70px) scale(1);
+  }
+}
+.toasts {
+  position: fixed;
+  bottom: 190px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  z-index: 150;
+  justify-items: center;
+  pointer-events: none;
+  width: min(560px, calc(100vw - 32px));
+}
+.toast {
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  font-weight: 500;
+  animation: toastin 0.35s cubic-bezier(0.2, 1.5, 0.4, 1);
+  transition:
+    opacity 0.35s,
+    transform 0.35s;
+  text-align: center;
+}
+.toast.good {
+  background: linear-gradient(135deg, #2fbf71, #1fa463);
+}
+.toast.bad {
+  background: linear-gradient(135deg, #ff6b6b, #e04848);
+}
+.toast.out {
+  opacity: 0;
+  transform: translateY(10px);
+}
+@keyframes toastin {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+}
