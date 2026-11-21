@@ -61,6 +61,7 @@
 .live {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   border-radius: 22px;
   background: repeating-conic-gradient(#e9e9f3 0 25%, #f3f3f9 0 50%) 0 0/22px 22px;
   box-shadow: var(--shadow);
@@ -69,11 +70,16 @@
   justify-content: center;
 }
 .live-box {
+  position: relative;
   height: 100%;
   overflow: hidden;
   background: #fff;
 }
+/* Pinned to the top-left corner so the scaled page lands inside the box in both LTR and RTL. */
 .live iframe {
+  position: absolute;
+  left: 0;
+  top: 0;
   border: 0;
   transform-origin: 0 0;
   display: block;

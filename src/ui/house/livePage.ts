@@ -18,7 +18,8 @@ export class LivePage {
   private observer: ResizeObserver | null = null;
   private frame: HTMLIFrameElement | null = null;
   private box: HTMLElement | null = null;
-  device: 'desktop' | 'phone' = 'desktop';
+  /** Phones start on the phone view: a whole desktop page shrunk to phone width is too small to read. */
+  device: 'desktop' | 'phone' = globalThis.matchMedia?.('(max-width: 640px)').matches ? 'phone' : 'desktop';
 
   constructor(
     private readonly onSelect: (id: string | null) => void,

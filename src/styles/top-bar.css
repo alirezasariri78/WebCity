@@ -1,7 +1,10 @@
 .hud {
   display: flex;
   align-items: center;
+  /* Wrap onto a second row instead of pushing buttons off the screen. */
+  flex-wrap: wrap;
   gap: 14px;
+  row-gap: 8px;
   padding: 10px 16px;
   z-index: 20;
   position: relative;

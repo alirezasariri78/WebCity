@@ -11,6 +11,19 @@
   .visitors {
     display: none;
   }
+  .hud {
+    gap: 8px;
+  }
+  .hud .hide-sm,
+  .hud .era-name {
+    display: none;
+  }
+}
+@media (max-width: 1000px) {
+  .hud .lvl-bar,
+  .hud .r-name {
+    display: none;
+  }
 }
 @media (max-width: 860px) {
   .hud {
@@ -53,5 +66,10 @@
   }
   .card-btn {
     width: 110px;
+  }
+}
+@media (max-width: 1600px) {
+  .hud .hide-md {
+    display: none;
   }
 }
