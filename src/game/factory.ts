@@ -1,10 +1,14 @@
 import { furnitureDef, houseDef } from '../core/catalog';
 import type { Furniture, FurnitureKind, House, HouseKind, SaveData } from '../core/types';
+import { getLang, t } from '../i18n';
+
+/** New furniture starts with example text in the player's language. */
+const translated = (props: Record<string, string> = {}) => Object.fromEntries(Object.entries(props).map(([key, value]) => [key, t(value)]));
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export function makeFurniture(kind: FurnitureKind, props?: Record<string, string>): Furniture {
-  return { id: uid(), kind, props: { ...furnitureDef(kind).defaults, ...props } };
+  return { id: uid(), kind, props: { ...translated(furnitureDef(kind).defaults), ...translated(props) } };
 }
 
 export function makeHouse(kind: HouseKind, x: number, y: number, name = houseDef(kind).name): House {
@@ -23,15 +27,20 @@ export function newGame(): SaveData {
   return {
     version: 1,
     town: {
-      name: 'My Town',
+      name: t('My Town'),
       logo: '🏘️',
       theme: 'meadow',
-      houses: [makeHouse('townhall', 3, 3, 'Home')],
+      houses: [makeHouse('townhall', 3, 3, t('Home'))],
       decor: [
         { id: uid(), kind: 'tree', x: 1, y: 1 },
         { id: uid(), kind: 'tree', x: 5, y: 1 },
         { id: uid(), kind: 'flowers', x: 2, y: 5 },
       ],
+      city: [
+        { id: uid(), kind: 'home', x: 6, y: 3, floors: 1, builtAt: Date.now() },
+        { id: uid(), kind: 'home', x: 6, y: 5, floors: 1, builtAt: Date.now() },
+      ],
+      site: getLang() === 'en' ? undefined : { lang: getLang() },
     },
     progress: {
       xp: 0,
@@ -55,10 +64,12 @@ export function newGame(): SaveData {
         upgrades: 0,
         collected: 0,
         styled: 0,
+        cityBuilt: 0,
+        grown: 0,
       },
       seenLevel: 1,
       toolsUsed: [],
     },
-    settings: { muted: false, welcomed: false },
+    settings: { muted: false, welcomed: false, lang: getLang(), tourDone: false, allTools: false },
   };
 }

@@ -1,38 +1,47 @@
-import { DECOR, HOUSES, THEMES, decorDef, houseDef, themeDef } from '../../core/catalog';
-import type { DecorKind, HouseKind, ThemeId } from '../../core/types';
+import { CITY, DECOR, HOUSES, THEMES, cityDef, decorDef, houseDef, themeDef } from '../../core/catalog';
+import type { CityKind, DecorKind, HouseKind, ThemeId } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { checkpoint } from '../../game/history';
 import { bump, level, reward } from '../../game/progress';
 import { commit, state } from '../../game/store';
+import { num, t } from '../../i18n';
 import { esc } from '../../site';
-import { getMode, setMode } from '../town/townView';
+import { getMode, setMode, startCustom } from '../town/townView';
 
-type Tab = 'houses' | 'nature' | 'styles';
+type Tab = 'pages' | 'city' | 'nature' | 'styles';
 
-const BUILDABLE_HOUSES = HOUSES.filter((h) => h.kind !== 'townhall');
+const PAGE_BUILDINGS = HOUSES.filter((h) => h.kind !== 'townhall');
 const THEME_XP_LIMIT = 6;
 
 let bar: HTMLElement;
-let tab: Tab = 'houses';
+let tab: Tab = 'pages';
 let renderedKey = '';
+
+export const currentBuildTab = () => tab;
 
 const lockedToast = (name: string, unlockLevel: number) => {
   sfx('error');
-  events.emit('toast', { text: `🔒 ${name} unlocks at level ${unlockLevel}. Finish quests to level up!`, kind: 'bad' });
+  events.emit('toast', {
+    text: t('🔒 {name} unlocks at level {level}. Finish quests to level up!', { name, level: unlockLevel }),
+    kind: 'bad',
+  });
 };
 
 const poorToast = (cost: number) => {
   sfx('error');
-  events.emit('toast', { text: `You need ${cost - state.progress.coins} more 🪙. Finish quests or wait for visitors!`, kind: 'bad' });
+  events.emit('toast', {
+    text: t('You need {coins} more 🪙. Finish quests or wait for visitors!', { coins: cost - state.progress.coins }),
+    kind: 'bad',
+  });
 };
 
-function isPlacing(type: 'house' | 'decor', kind: string) {
+function isPlacing(type: 'house' | 'city' | 'decor', kind: string) {
   const mode = getMode();
   return mode.type === type && mode.kind === kind;
 }
 
-function card(opts: {
+interface CardOptions {
   attr: string;
   kind: string;
   emoji: string;
@@ -42,28 +51,48 @@ function card(opts: {
   locked: boolean;
   active: boolean;
   extra?: string;
-}) {
-  const poor = !opts.locked && opts.cost !== undefined && state.progress.coins < opts.cost;
-  const classes = ['card-btn', opts.extra ?? '', opts.locked ? 'locked' : '', opts.active ? 'active' : '', poor ? 'poor' : '']
-    .filter(Boolean)
-    .join(' ');
-  const cost = opts.cost === undefined ? '' : `<span class="cost">${opts.cost} 🪙</span>`;
-  return `<button class="${classes}" ${opts.attr}="${opts.kind}"><span class="cb-emoji">${opts.locked ? '🔒' : opts.emoji}</span><b>${opts.name}</b><small>${opts.sub}</small>${cost}</button>`;
+  swatch?: [string, string];
 }
 
+function card(o: CardOptions) {
+  const poor = !o.locked && o.cost !== undefined && state.progress.coins < o.cost;
+  const classes = ['card-btn', o.extra, o.locked && 'locked', o.active && 'active', poor && 'poor'].filter(Boolean).join(' ');
+  const cost = o.cost === undefined ? '' : `<span class="cost">${num(o.cost)} 🪙</span>`;
+  const swatch = o.swatch ? `<span class="swatch" style="--a:${o.swatch[0]};--b:${o.swatch[1]}"></span>` : '';
+  return `<button class="${classes}" ${o.attr}="${o.kind}">${swatch}<span class="cb-emoji">${o.locked ? '🔒' : o.emoji}</span><b>${esc(o.name)}</b><small>${o.sub}</small>${cost}</button>`;
+}
+
+const levelLabel = (n: number) => t('Level {n}', { n });
+
 function cardsFor(current: Tab, playerLevel: number): string {
-  if (current === 'houses') {
-    return BUILDABLE_HOUSES.map((h) => {
+  if (current === 'pages') {
+    return PAGE_BUILDINGS.map((h) => {
       const locked = h.level > playerLevel;
       return card({
         attr: 'data-house',
         kind: h.kind,
         emoji: h.emoji,
-        name: h.name,
-        sub: locked ? `Level ${h.level}` : h.web,
+        name: t(h.name),
+        sub: locked ? levelLabel(h.level) : t(h.web),
         cost: h.cost,
         locked,
         active: isPlacing('house', h.kind),
+      });
+    }).join('');
+  }
+  if (current === 'city') {
+    return CITY.map((c) => {
+      const locked = c.level > playerLevel;
+      return card({
+        attr: 'data-city',
+        kind: c.kind,
+        emoji: c.emoji,
+        name: t(c.name),
+        sub: locked ? levelLabel(c.level) : t(c.desc),
+        cost: c.cost,
+        locked,
+        active: isPlacing('city', c.kind),
+        extra: 'city-card',
       });
     }).join('');
   }
@@ -74,8 +103,8 @@ function cardsFor(current: Tab, playerLevel: number): string {
         attr: 'data-decor',
         kind: d.kind,
         emoji: d.emoji,
-        name: d.name,
-        sub: locked ? `Level ${d.level}` : '&nbsp;',
+        name: t(d.name),
+        sub: locked ? levelLabel(d.level) : '&nbsp;',
         cost: d.cost,
         locked,
         active: isPlacing('decor', d.kind),
@@ -83,28 +112,36 @@ function cardsFor(current: Tab, playerLevel: number): string {
       });
     }).join('');
   }
-  return THEMES.map((t) => {
-    const locked = t.level > playerLevel;
-    const inUse = state.town.theme === t.id;
-    const sub = locked ? `Level ${t.level}` : inUse ? '✓ Using now' : esc(t.desc);
-    return card({ attr: 'data-theme', kind: t.id, emoji: t.emoji, name: t.name, sub, locked, active: inUse, extra: 'theme-card' }).replace(
-      '<span class="cb-emoji">',
-      `<span class="swatch" style="--a:${t.site.heroFrom};--b:${t.site.heroTo}"></span><span class="cb-emoji">`,
-    );
+  return THEMES.map((th) => {
+    const locked = th.level > playerLevel;
+    const inUse = state.town.theme === th.id;
+    const sub = locked ? levelLabel(th.level) : inUse ? t('✓ Using now') : esc(t(th.desc));
+    return card({
+      attr: 'data-theme',
+      kind: th.id,
+      emoji: th.emoji,
+      name: t(th.name),
+      sub,
+      locked,
+      active: inUse,
+      extra: 'theme-card',
+      swatch: [th.site.heroFrom, th.site.heroTo],
+    });
   }).join('');
 }
 
-function chooseHouse(kind: HouseKind) {
-  const def = houseDef(kind);
-  if (def.level > level()) return lockedToast(def.name, def.level);
+function choose<K extends string>(def: { name: string; level: number; cost: number }, type: 'house' | 'city', kind: K) {
+  if (def.level > level()) return lockedToast(t(def.name), def.level);
   if (state.progress.coins < def.cost) return poorToast(def.cost);
   sfx('click');
-  setMode({ type: 'house', kind });
+  if (kind === 'custom') return void startCustom(type);
+  if (isPlacing(type, kind)) setMode({ type: 'idle' });
+  else setMode(type === 'house' ? { type, kind: kind as unknown as HouseKind } : { type, kind: kind as unknown as CityKind });
 }
 
 function chooseDecor(kind: DecorKind) {
   const def = decorDef(kind);
-  if (def.level > level()) return lockedToast(def.name, def.level);
+  if (def.level > level()) return lockedToast(t(def.name), def.level);
   if (state.progress.coins < def.cost) return poorToast(def.cost);
   sfx('click');
   setMode(isPlacing('decor', kind) ? { type: 'idle' } : { type: 'decor', kind });
@@ -112,13 +149,16 @@ function chooseDecor(kind: DecorKind) {
 
 function chooseTheme(id: ThemeId, at: MouseEvent) {
   const theme = themeDef(id);
-  if (theme.level > level()) return lockedToast(`${theme.name} style`, theme.level);
+  if (theme.level > level()) return lockedToast(t(theme.name), theme.level);
   if (state.town.theme === id) return;
   checkpoint();
   state.town.theme = id;
   sfx('whoosh');
   events.emit('confetti', { x: at.clientX, y: at.clientY });
-  events.emit('toast', { text: `${theme.emoji} Your town AND your website now use the ${theme.name} style!`, kind: 'good' });
+  events.emit('toast', {
+    text: t('{emoji} Your town and your website now use the {name} style!', { emoji: theme.emoji, name: t(theme.name) }),
+    kind: 'good',
+  });
   bump('themesTried');
   if (state.progress.stats.themesTried <= THEME_XP_LIMIT) reward(10, 0);
   commit();
@@ -135,23 +175,25 @@ export function mountBuildBar(el: HTMLElement) {
       sfx('click');
       if (getMode().type !== 'idle') setMode({ type: 'idle' });
       updateBuildBar();
-    } else if (d.house) chooseHouse(d.house as HouseKind);
+    } else if (d.house) choose(houseDef(d.house as HouseKind), 'house', d.house);
+    else if (d.city) choose(cityDef(d.city as CityKind), 'city', d.city);
     else if (d.decor) chooseDecor(d.decor as DecorKind);
     else if (d.theme) chooseTheme(d.theme as ThemeId, e);
   });
 }
 
-export function updateBuildBar() {
+export function updateBuildBar(force = false) {
   if (!bar) return;
   const playerLevel = level();
-  const costs = tab === 'houses' ? BUILDABLE_HOUSES.map((h) => h.cost) : tab === 'nature' ? DECOR.map((d) => d.cost) : [];
-  const affordable = costs.map((c) => (state.progress.coins >= c ? 1 : 0)).join('');
+  const costs = tab === 'pages' ? PAGE_BUILDINGS : tab === 'city' ? CITY : tab === 'nature' ? DECOR : [];
+  const affordable = costs.map((c) => (state.progress.coins >= c.cost ? 1 : 0)).join('');
   const key = `${tab}|${playerLevel}|${JSON.stringify(getMode())}|${state.town.theme}|${affordable}`;
-  if (key === renderedKey) return;
+  if (key === renderedKey && !force) return;
   renderedKey = key;
 
-  const tabButton = (id: Tab, label: string) => `<button data-tab="${id}" class="${tab === id ? 'on' : ''}">${label}</button>`;
+  const tabButton = (id: Tab, label: string, hint: string) =>
+    `<button data-tab="${id}" class="${tab === id ? 'on' : ''}">${label}${hint ? ` <small>${hint}</small>` : ''}</button>`;
   bar.innerHTML = `
-    <div class="tabs">${tabButton('houses', '🏠 Houses <small>= pages</small>')}${tabButton('nature', '🌳 Nature')}${tabButton('styles', '🎨 Styles <small>= look</small>')}</div>
+    <div class="tabs">${tabButton('pages', `🏠 ${t('Pages')}`, t('= website pages'))}${tabButton('city', `🏙️ ${t('City')}`, t('= grows by itself'))}${tabButton('nature', `🌳 ${t('Nature')}`, '')}${tabButton('styles', `🎨 ${t('Styles')}`, '')}</div>
     <div class="cards">${cardsFor(tab, playerLevel)}</div>`;
 }

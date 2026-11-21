@@ -4,6 +4,7 @@ import { countFormFields, isForm } from '../../core/rules';
 import type { Furniture, House } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { esc, parseJSON } from '../../site';
+import { num, t } from '../../i18n';
 
 export interface RoomHandlers {
   select: (id: string) => void;
@@ -16,15 +17,15 @@ const MAX_SUMMARY = 48;
 
 export function summary(item: Furniture): string {
   const p = item.props;
-  if (item.kind === 'photowall') return `${(p.images || '').split(',').filter(Boolean).length} photos`;
+  if (item.kind === 'photowall') return t('{n} photos', { n: (p.images || '').split(',').filter(Boolean).length });
   if (item.kind === 'divider') return '— — —';
-  if (item.kind === 'spacer') return `${p.size}px of space`;
-  if (isForm(item)) return `${countFormFields(p.fields)} inputs · ${p.title ?? ''}`;
+  if (item.kind === 'spacer') return t('{n}px of space', { n: p.size });
+  if (isForm(item)) return `${t('{n} inputs', { n: countFormFields(p.fields) })} · ${p.title ?? ''}`;
   if (item.kind === 'buttons')
     return parseJSON<{ label: string }[]>(p.items, [])
       .map((r) => r.label)
       .join(' · ');
-  if (item.kind === 'html') return 'Custom code';
+  if (item.kind === 'html') return t('Custom code');
   const text = p.title || p.heading || p.name || p.label || p.text || p.caption || '';
   return text.length > MAX_SUMMARY ? `${text.slice(0, MAX_SUMMARY - 2)}…` : text;
 }
@@ -34,16 +35,16 @@ function card(item: Furniture, index: number, count: number, selectedId: string 
   const needsWords = !item.edited && def.fields.length > 0;
   return `<div class="item${item.id === selectedId ? ' selected' : ''}" draggable="true" data-item="${item.id}">
     <span class="item-emoji">${def.emoji}</span>
-    <span class="item-text"><b>${def.name}</b> <small class="muted">→ ${def.web}</small><span class="item-sum">${esc(summary(item))}</span></span>
-    ${isStyled(item.style) ? '<span class="styled-dot" title="Has its own style">🎨</span>' : ''}
+    <span class="item-text"><b>${t(def.name)}</b> <small class="muted">→ ${t(def.web)}</small><span class="item-sum">${esc(summary(item))}</span></span>
+    ${isStyled(item.style) ? `<span class="styled-dot" title="${t('Has its own style')}">🎨</span>` : ''}
     ${item.props.src ? `<img class="thumb" src="${esc(resolveImage(item.props.src))}" alt="">` : ''}
     <span class="item-tools">
-      <button class="icon-btn" data-up ${index === 0 ? 'disabled' : ''} title="Move up">▲</button>
-      <button class="icon-btn" data-down ${index === count - 1 ? 'disabled' : ''} title="Move down">▼</button>
-      <button class="icon-btn" data-dup title="Duplicate">⧉</button>
-      <button class="icon-btn danger" data-del title="Remove">✕</button>
+      <button class="icon-btn" data-up ${index === 0 ? 'disabled' : ''} title="${t('Move up')}">▲</button>
+      <button class="icon-btn" data-down ${index === count - 1 ? 'disabled' : ''} title="${t('Move down')}">▼</button>
+      <button class="icon-btn" data-dup title="${t('Duplicate')}">⧉</button>
+      <button class="icon-btn danger" data-del title="${t('Remove')}">✕</button>
     </span>
-    ${needsWords ? '<span class="new-badge">write me!</span>' : ''}
+    ${needsWords ? `<span class="new-badge">${t('write me!')}</span>` : ''}
   </div>`;
 }
 
@@ -52,10 +53,10 @@ export function renderRoom(el: HTMLElement, house: House, selectedId: string | n
   const full = house.items.length >= slots ? ' full' : '';
   const cards = house.items.length
     ? house.items.map((item, i) => card(item, i, house.items.length, selectedId)).join('')
-    : '<div class="empty">This room is empty!<br>Pick furniture from the shop on the left. 👈</div>';
-  el.innerHTML = `<div class="room-head">Top of page ↑ <span class="slots${full}">🛋️ ${house.items.length} / ${slots}</span></div>
+    : `<div class="empty">${t('This room is empty!')}<br>${t('Pick furniture from the shop.')}</div>`;
+  el.innerHTML = `<div class="room-head">${t('Top of page ↑')} <span class="slots${full}">🛋️ ${num(house.items.length)} / ${num(slots)}</span></div>
     <div class="stack">${cards}</div>
-    <div class="room-head">Bottom of page ↓</div>`;
+    <div class="room-head">${t('Bottom of page ↓')}</div>`;
 
   el.querySelectorAll<HTMLElement>('[data-item]').forEach((cardEl, index) => {
     const id = cardEl.dataset.item!;

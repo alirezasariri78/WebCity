@@ -1,12 +1,14 @@
 import { DEFAULT_CONTACT_FIELDS, resolveImage } from '../core/catalog';
-import { backgroundCSS, customCss, styleClasses, styleVars } from '../core/design';
+import { backgroundCSS, customCss, directionOf, styleClasses, styleVars } from '../core/design';
 import type { FormField, Furniture, FurnitureKind } from '../core/types';
 import { renderForm } from './forms';
 import { resolveHref, youtubeId } from './links';
+import type { SiteText } from './strings';
 import { esc, lines, paragraphs, parseJSON, slugify, splitEmoji, splitList, splitPair } from './text';
 
 export interface RenderContext {
   files: Map<string, string>;
+  text: SiteText;
 }
 
 type Props = Record<string, string>;
@@ -22,7 +24,7 @@ const heading = (text: string | undefined, tag = 'h2', cls = '') =>
 const optional = (text: string | undefined, render: (t: string) => string) => (text ? render(text) : '');
 
 export const button = (label: string | undefined, link: string | undefined, ctx: RenderContext, variant = 'primary', size = 'md') =>
-  `<a class="btn btn-${esc(variant)} btn-${esc(size)}" href="${href(link, ctx)}">${esc(label || 'Click me')}</a>`;
+  `<a class="btn btn-${esc(variant)} btn-${esc(size)}" href="${href(link, ctx)}">${esc(label || ctx.text.clickMe)}</a>`;
 
 const section = (inner: string, cls = '') => `<section class="wrap${cls ? ` ${cls}` : ''}">${inner}</section>`;
 
@@ -31,12 +33,13 @@ const eachPair = (text: string | undefined, render: (left: string, right: string
     .map((line) => render(...splitPair(line)))
     .join('');
 
-function formSection(p: Props, item: Furniture): string {
+function formSection(p: Props, item: Furniture, ctx: RenderContext): string {
   const fields = parseJSON<FormField[]>(p.fields || DEFAULT_CONTACT_FIELDS, []);
   const endpoint = p.endpoint?.trim();
   const form = renderForm({
     fields,
-    submitLabel: p.submit || 'Send message',
+    submitLabel: p.submit || ctx.text.sendMessage,
+    chooseLabel: ctx.text.choose,
     action: endpoint ? resolveHref(endpoint, new Map()) : `mailto:${p.email?.trim() ?? ''}`,
     sendsEmail: !endpoint,
     idPrefix: `f-${item.id}`,
@@ -81,12 +84,12 @@ const RENDERERS: Record<FurnitureKind, Renderer> = {
       `<div class="split${p.side === 'right' ? ' flip' : ''}">${img(p.src, p.heading)}<div class="split-text">${heading(p.heading)}${paragraphs(p.text ?? '')}${optional(p.label, (l) => `<div class="btnrow">${button(l, p.link, ctx)}</div>`)}</div></div>`,
     ),
 
-  mailbox: (p, _ctx, item) => formSection(p, item),
-  form: (p, _ctx, item) => formSection(p, item),
+  mailbox: (p, ctx, item) => formSection(p, item, ctx),
+  form: (p, ctx, item) => formSection(p, item, ctx),
 
-  newsletter: (p, _ctx, item) =>
+  newsletter: (p, ctx, item) =>
     section(
-      `<div class="card newsletter"><div>${heading(p.title)}${optional(p.text, (t) => `<p class="muted">${esc(t)}</p>`)}</div><form action="mailto:${esc(p.email?.trim() ?? '')}" method="post" enctype="text/plain"><label class="sr" for="nl-${item.id}">Email</label><input id="nl-${item.id}" type="email" name="email" required placeholder="${esc(p.placeholder || 'you@mail.com')}"><button class="btn btn-primary btn-md" type="submit">${esc(p.button || 'Sign up')}</button></form></div>`,
+      `<div class="card newsletter"><div>${heading(p.title)}${optional(p.text, (t) => `<p class="muted">${esc(t)}</p>`)}</div><form action="mailto:${esc(p.email?.trim() ?? '')}" method="post" enctype="text/plain"><label class="sr" for="nl-${item.id}">Email</label><input id="nl-${item.id}" type="email" name="email" required placeholder="${esc(p.placeholder || 'you@mail.com')}"><button class="btn btn-primary btn-md" type="submit">${esc(p.button || ctx.text.signUp)}</button></form></div>`,
     ),
 
   photowall: (p) =>
@@ -111,7 +114,7 @@ const RENDERERS: Record<FurnitureKind, Renderer> = {
 
   product: (p, ctx) =>
     section(
-      `<div class="card product">${img(p.src, p.name)}<div class="product-body">${heading(p.name, 'h3')}${optional(p.price, (v) => `<div class="price">${esc(v)}</div>`)}${optional(p.text, (t) => `<p class="muted">${esc(t)}</p>`)}${button('Buy now', p.link, ctx)}</div></div>`,
+      `<div class="card product">${img(p.src, p.name)}<div class="product-body">${heading(p.name, 'h3')}${optional(p.price, (v) => `<div class="price">${esc(v)}</div>`)}${optional(p.text, (t) => `<p class="muted">${esc(t)}</p>`)}${button(ctx.text.buyNow, p.link, ctx)}</div></div>`,
     ),
 
   hours: (p) =>
@@ -133,11 +136,11 @@ const RENDERERS: Record<FurnitureKind, Renderer> = {
       'text',
     ),
 
-  video: (p) => {
+  video: (p, ctx) => {
     const id = youtubeId(p.url ?? '');
     const player = id
       ? `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${esc(p.title || 'Video')}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`
-      : '<div class="video empty-video"><span>▶</span><p>Paste a YouTube link in the Television to show your video here.</p></div>';
+      : `<div class="video empty-video"><span>▶</span><p>${esc(ctx.text.noVideo)}</p></div>`;
     return section(`${heading(p.title, 'h2', 'center')}${player}`);
   },
 
@@ -166,11 +169,11 @@ const RENDERERS: Record<FurnitureKind, Renderer> = {
       .map((line, i) => {
         const [name, price = '', features = ''] = line.split('|').map((s) => s.trim());
         const isFeatured = i === featured;
-        return `<div class="card plan${isFeatured ? ' featured' : ''}">${isFeatured ? '<div class="tag">Most popular</div>' : ''}<h3>${esc(name)}</h3><div class="price">${esc(price)}</div><ul class="list">${splitList(
+        return `<div class="card plan${isFeatured ? ' featured' : ''}">${isFeatured ? `<div class="tag">${esc(ctx.text.popular)}</div>` : ''}<h3>${esc(name)}</h3><div class="price">${esc(price)}</div><ul class="list">${splitList(
           features,
         )
           .map((f) => `<li>${esc(f)}</li>`)
-          .join('')}</ul>${button('Choose', '', ctx, isFeatured ? 'primary' : 'outline')}</div>`;
+          .join('')}</ul>${button(ctx.text.pickPlan, '', ctx, isFeatured ? 'primary' : 'outline')}</div>`;
       })
       .join('');
     return section(`${heading(p.title, 'h2', 'center')}<div class="cards pricing">${cards}</div>`);
@@ -207,7 +210,8 @@ export function renderSection(item: Furniture, ctx: RenderContext): string {
   const classes = ['sec', `sec-${item.kind}`, ...styleClasses(style)].join(' ');
   const css = [styleVars(style), backgroundCSS(style, resolveImage), customCss(style)].filter(Boolean).join(';');
   const anchor = style?.anchor ? ` id="${esc(slugify(style.anchor))}"` : '';
-  return `<div class="${classes}" data-fid="${esc(item.id)}"${anchor}${css ? ` style="${esc(css)}"` : ''}>${inner}</div>`;
+  const dir = directionOf(style);
+  return `<div class="${classes}" data-fid="${esc(item.id)}"${anchor}${dir ? ` dir="${dir}"` : ''}${css ? ` style="${esc(css)}"` : ''}>${inner}</div>`;
 }
 
 export const RENDERED_KINDS = Object.keys(RENDERERS) as FurnitureKind[];

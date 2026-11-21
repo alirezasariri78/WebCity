@@ -1,4 +1,5 @@
 import { sfx } from '../../game/audio';
+import { t } from '../../i18n';
 import { esc } from '../../site';
 
 export interface ModalHandle {
@@ -9,7 +10,7 @@ export interface ModalHandle {
 export function openModal(html: string, opts: { cls?: string; onClose?: () => void; dismissable?: boolean } = {}): ModalHandle {
   const back = document.createElement('div');
   back.className = 'modal-back';
-  back.innerHTML = `<div class="modal ${opts.cls ?? ''}" role="dialog">${opts.dismissable === false ? '' : '<button class="modal-x" aria-label="Close">✕</button>'}${html}</div>`;
+  back.innerHTML = `<div class="modal ${opts.cls ?? ''}" role="dialog">${opts.dismissable === false ? '' : `<button class="modal-x" aria-label="${t('Close')}">✕</button>`}${html}</div>`;
   document.body.appendChild(back);
   requestAnimationFrame(() => back.classList.add('in'));
   const el = back.querySelector<HTMLElement>('.modal')!;
@@ -49,7 +50,7 @@ export function promptModal(
     const m = openModal(
       `<div class="modal-icon">${opts.emoji ?? '✏️'}</div><h2>${esc(title)}</h2>
       <form class="prompt-form"><label class="field"><span>${esc(label)}</span><input class="input" maxlength="${opts.max ?? 40}" value="${esc(value)}"></label>
-      <div class="row end"><button type="button" class="btn ghost" data-cancel>Cancel</button><button class="btn primary">Save ✓</button></div></form>`,
+      <div class="row end"><button type="button" class="btn ghost" data-cancel>${t('Cancel')}</button><button class="btn primary">${t('Save ✓')}</button></div></form>`,
       { onClose: () => !done && resolve(null) },
     );
     const input = m.el.querySelector('input')!;
@@ -74,7 +75,7 @@ export function confirmModal(title: string, text: string, yes: string, emoji = '
     let done = false;
     const m = openModal(
       `<div class="modal-icon">${emoji}</div><h2>${esc(title)}</h2><p class="muted">${esc(text)}</p>
-      <div class="row end"><button class="btn ghost" data-no>Cancel</button><button class="btn danger" data-yes>${esc(yes)}</button></div>`,
+      <div class="row end"><button class="btn ghost" data-no>${t('Cancel')}</button><button class="btn danger" data-yes>${esc(yes)}</button></div>`,
       { onClose: () => !done && resolve(false) },
     );
     m.el.querySelector('[data-no]')!.addEventListener('click', () => m.close());

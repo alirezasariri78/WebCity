@@ -1,4 +1,5 @@
 import type { SaveData } from '../core/types';
+import { t } from '../i18n';
 import { events } from './events';
 import { loadSave, writeSave } from './persistence';
 
@@ -45,7 +46,7 @@ export function saveNow() {
   clearTimeout(saveTimer);
   state.progress.lastSeen = Date.now();
   if (!writeSave(state)) {
-    events.emit('toast', { text: '⚠️ Could not save. Your pictures may be too big.', kind: 'bad' });
+    events.emit('toast', { text: t('⚠️ Could not save. Your pictures may be too big.'), kind: 'bad' });
   }
 }
 

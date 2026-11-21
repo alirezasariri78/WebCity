@@ -33,7 +33,8 @@ describe('saving and loading', () => {
     expect(migrated.progress.stats.styled).toBe(0);
     expect(migrated.progress.stats.upgrades).toBe(0);
     expect(migrated.settings.muted).toBe(false);
-    expect(migrated.town).toBe(old.town);
+    expect(migrated.town.houses).toBe(old.town.houses);
+    expect(migrated.town.city).toEqual(old.town.city);
   });
 
   it('keeps existing values when migrating', () => {

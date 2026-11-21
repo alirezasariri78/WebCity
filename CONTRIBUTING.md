@@ -40,6 +40,13 @@ Most new content is just data:
 
 - **A new piece of furniture**: add it to `src/core/catalog/furniture.ts`, add its kind to `FurnitureKind` in `src/core/types.ts`, and add a renderer in `src/site/sections.ts`. The tests check that every kind renders, escapes text, and has defaults.
 - **A new house**: add it to `src/core/catalog/houses.ts` and `HouseKind`. Its drawing comes from its `roof3d` shape and colours.
+- **A new city building**: add it to `src/core/catalog/city.ts` and `CityKind`. Set how many people live on each floor, how many coins it makes, and its tallest height.
 - **A new style control**: add it to `src/core/design/controls.ts`, convert it in `src/core/design/css.ts`, and use the CSS variable in `src/site/base.css`.
+
+## Text and translations
+
+Wrap every sentence the player sees in `t('…')` from `src/i18n`, written in plain English. Use `{name}` placeholders for numbers and names: `t('Day {n} streak!', { n })`. Then add the Persian version to `src/i18n/fa.ts`. The i18n test fails and lists the sentence if you forget, or if the placeholders don't match.
+
+Use logical CSS (`margin-inline-start`, `inset-inline-end`, `text-align: start`) instead of left and right, so the layout mirrors itself in right-to-left languages.
 
 If you add a field to the saved data, give it a default in `migrate()` (`src/game/persistence.ts`) so old saves keep working.

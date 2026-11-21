@@ -6,6 +6,17 @@ const HAIR = ['#3e2723', '#212121', '#ffb74d', '#8d6e63', '#d84315'];
 
 export const VILLAGER_VARIANTS = SHIRTS.length;
 
+const CAR_COLORS = ['#e53935', '#1e88e5', '#fdd835', '#43a047', '#fb8c00', '#f5f5f5'];
+export const CAR_VARIANTS = CAR_COLORS.length;
+
+export function carArt(variant: number): Art {
+  const body = CAR_COLORS[variant % CAR_COLORS.length];
+  return {
+    svg: `<ellipse cx="0" cy="1" rx="11" ry="4" fill="#000" opacity=".22"/><rect x="-10" y="-9" width="20" height="8" rx="3" fill="${body}"/><rect x="-6" y="-14" width="11" height="6" rx="2" fill="${body}"/><rect x="-4.5" y="-13" width="3.5" height="4" fill="#bfe6ff"/><rect x="0" y="-13" width="3.5" height="4" fill="#bfe6ff"/><circle cx="-6" cy="-1" r="2.4" fill="#263238"/><circle cx="6" cy="-1" r="2.4" fill="#263238"/><rect x="8" y="-7" width="2" height="2" fill="#fff59d"/>`,
+    box: [-13, -17, 13, 6],
+  };
+}
+
 export function villagerArt(variant: number): Art {
   const shirt = SHIRTS[variant % SHIRTS.length];
   const skin = SKINS[(variant * 3) % SKINS.length];

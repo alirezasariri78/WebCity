@@ -1,7 +1,6 @@
-import { houseScale } from '../../core/catalog';
 import type { House } from '../../core/types';
 import { uid } from '../../game/factory';
-import { houseTop } from '../../render/art';
+import { houseVisual } from '../../render/buildings';
 import type { Bubble } from '../../render/scene';
 
 export type TreasureKind = 'coin' | 'gem' | 'gift';
@@ -37,7 +36,7 @@ export function spawnBubble(houses: House[], bubbles: Bubble[], now: number, ran
     id: uid(),
     gx: house.x,
     gy: house.y,
-    top: houseTop(house.kind) * houseScale(house.level),
+    top: houseVisual(house, false).top,
     emoji: rollTreasure(random()).emoji,
     born: now,
     seed: random() * 6,

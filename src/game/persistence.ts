@@ -13,12 +13,13 @@ export function migrate(data: SaveData): SaveData {
   const fresh = newGame();
   return {
     ...data,
+    town: { ...data.town, city: data.town.city ?? [] },
     progress: {
       ...fresh.progress,
       ...data.progress,
       stats: { ...fresh.progress.stats, ...data.progress?.stats },
     },
-    settings: { ...fresh.settings, ...data.settings },
+    settings: { ...fresh.settings, ...data.settings, tourDone: data.settings?.tourDone ?? !!data.settings?.welcomed },
   };
 }
 

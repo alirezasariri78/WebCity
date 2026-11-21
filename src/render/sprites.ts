@@ -66,12 +66,29 @@ async function rasterize(art: Art): Promise<Sprite> {
   return { image: await toGpu(full), x0, y0, w, h, alpha: alphaMask(full, w, h) };
 }
 
+/** Most sprites kept in GPU memory. Growing buildings create new sizes, so old ones are let go. */
+const MAX_SPRITES = 260;
+
+function evictOldest() {
+  for (const [key, value] of cache) {
+    if (cache.size <= MAX_SPRITES) return;
+    if (value === 'loading') continue;
+    if (typeof ImageBitmap !== 'undefined' && value.image instanceof ImageBitmap) value.image.close();
+    cache.delete(key);
+  }
+}
+
 /** Returns the cached sprite, or null while it is still being drawn (it is started on first request). */
 export function sprite(key: string, make: () => Art): Sprite | null {
   const hit = cache.get(key);
   if (hit === 'loading') return null;
-  if (hit) return hit;
+  if (hit) {
+    cache.delete(key);
+    cache.set(key, hit);
+    return hit;
+  }
   cache.set(key, 'loading');
+  if (cache.size > MAX_SPRITES) evictOldest();
   rasterize(make())
     .then((s) => {
       cache.set(key, s);

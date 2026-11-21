@@ -58,6 +58,35 @@ figure {
   margin: 0 auto;
   padding: 0 22px;
 }
+main {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+}
+main > .sec {
+  grid-column: 1 / -1;
+}
+main > .span-two-thirds {
+  grid-column: span 4;
+}
+main > .span-half {
+  grid-column: span 3;
+}
+main > .span-third {
+  grid-column: span 2;
+}
+main > .va-center {
+  align-self: center;
+}
+main > .va-end {
+  align-self: end;
+}
+.js-start .wrap {
+  margin-inline: 0 auto;
+}
+.js-end .wrap {
+  margin-inline: auto 0;
+}
 section.wrap {
   margin-top: var(--gap, 56px);
   margin-bottom: var(--gap, 56px);
@@ -124,7 +153,7 @@ section.wrap {
   font-size: 1.3rem;
   color: var(--text);
   text-decoration: none;
-  margin-right: auto;
+  margin-inline-end: auto;
   display: flex;
   gap: 0.45em;
   align-items: center;
@@ -163,7 +192,7 @@ section.wrap {
 }
 .more-menu {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: calc(100% + 8px);
   background: var(--surface);
   border-radius: 12px;
@@ -411,7 +440,7 @@ figcaption {
   border-bottom: 1px dashed color-mix(in srgb, var(--text) 15%, transparent);
 }
 .hours td:last-child {
-  text-align: right;
+  text-align: end;
   font-weight: 700;
 }
 .list {
@@ -419,13 +448,14 @@ figcaption {
   list-style: none;
 }
 .list li {
-  padding: 10px 0 10px 36px;
+  padding-block: 10px;
+  padding-inline: 36px 0;
   position: relative;
 }
 .list li::before {
   content: '✓';
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   top: 9px;
   width: 24px;
   height: 24px;
@@ -662,7 +692,7 @@ form > .btn {
   position: relative;
 }
 .plan .list {
-  text-align: left;
+  text-align: start;
   flex: 1;
 }
 .plan.featured {
@@ -718,16 +748,17 @@ form > .btn {
   list-style: none;
   padding: 0;
   margin: 0;
-  border-left: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-inline-start: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
 }
 .timeline li {
   position: relative;
-  padding: 0 0 26px 28px;
+  padding-block: 0 26px;
+  padding-inline: 28px 0;
 }
 .timeline li::before {
   content: '';
   position: absolute;
-  left: -10px;
+  inset-inline-start: -10px;
   top: 4px;
   width: 17px;
   height: 17px;
@@ -778,7 +809,7 @@ form > .btn {
   margin-right: auto;
 }
 .al-center .list li {
-  text-align: left;
+  text-align: start;
 }
 .al-right,
 .al-right .center,
@@ -858,6 +889,9 @@ footer {
 }
 
 @media (max-width: 700px) {
+  main > .sec {
+    grid-column: 1 / -1;
+  }
   .product,
   .split,
   .newsletter {

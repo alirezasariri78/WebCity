@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { furnitureDef } from '../../src/core/catalog';
-import { DEFAULT_TOWN_NAME, incomePerTick, rateTown, visitorsPerHour } from '../../src/core/rules';
+import { DEFAULT_TOWN_NAME, hintText, incomePerTick, rateTown, visitorsPerHour } from '../../src/core/rules';
+
+const hintsOf = (t: Parameters<typeof rateTown>[0]) => rateTown(t).hints.map(hintText).join(' ');
 import { house, part, town } from '../helpers';
 
 function perfectTown() {
@@ -32,14 +34,14 @@ describe('website rating', () => {
     const t = perfectTown();
     const mailbox = t.houses[1].items[1];
     mailbox.props.email = furnitureDef('mailbox').defaults.email;
-    expect(rateTown(t).hints.join(' ')).toMatch(/Mailbox/);
+    expect(hintsOf(t)).toMatch(/Mailbox/);
   });
 
   it('names the house that is almost empty', () => {
     const t = perfectTown();
     t.houses[2].items = [];
     t.houses[2].name = 'Empty Shop';
-    expect(rateTown(t).hints.join(' ')).toContain('"Empty Shop"');
+    expect(hintsOf(t)).toContain('"Empty Shop"');
   });
 
   it('wants a real town name', () => {
@@ -71,5 +73,11 @@ describe('visitors and income', () => {
     const plain = town({ houses: [house('townhall', 3, 3), house('cottage', 1, 1)] });
     const upgraded = town({ houses: [house('townhall', 3, 3), house('cottage', 1, 1, { level: 3 })] });
     expect(incomePerTick(upgraded, 50)).toBe(incomePerTick(plain, 50) + 2);
+  });
+});
+
+describe('starter name', () => {
+  it('treats the Persian starter name as not renamed yet', () => {
+    expect(rateTown({ ...perfectTown(), name: 'شهر من' }).score).toBe(90);
   });
 });

@@ -21,6 +21,7 @@ export const FONTS: Font[] = [
   { name: 'Baloo 2', stack: "'Baloo 2', system-ui, sans-serif", query: 'Baloo+2:wght@400;600;800', feel: 'Bubbly' },
   { name: 'Orbitron', stack: "'Orbitron', system-ui, sans-serif", query: 'Orbitron:wght@400;700;900', feel: 'Sci-fi' },
   { name: 'Roboto Slab', stack: "'Roboto Slab', Georgia, serif", query: 'Roboto+Slab:wght@400;600;800', feel: 'Sturdy' },
+  { name: 'Vazirmatn', stack: "'Vazirmatn', Tahoma, sans-serif", query: 'Vazirmatn:wght@400;600;800', feel: 'Persian' },
   { name: 'Source Code Pro', stack: "'Source Code Pro', monospace", query: 'Source+Code+Pro:wght@400;700', feel: 'Code' },
 ];
 

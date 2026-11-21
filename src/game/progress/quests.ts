@@ -1,8 +1,9 @@
 import { isStyled } from '../../core/design';
-import { allItems, hasContactEmail, hasEditedTitle, hasHouse, homeOf, largestForm } from '../../core/rules';
-import { DEFAULT_TOWN_NAME } from '../../core/rules/rating';
+import { allItems, hasContactEmail, hasEditedTitle, hasHouse, homeOf, largestForm, population } from '../../core/rules';
+import { hasDefaultName } from '../../core/rules/rating';
 import type { Stats } from '../../core/types';
 import { state } from '../store';
+import { t } from '../../i18n';
 import { level, rating } from './status';
 
 export interface Quest {
@@ -19,14 +20,16 @@ const yes = (condition: boolean) => (condition ? 1 : 0);
 const stat = (name: keyof Stats) => () => state.progress.stats[name];
 const houses = () => state.town.houses.length;
 const town = () => state.town;
+const tallest = () => Math.max(0, ...state.town.city.map((b) => b.floors));
+const people = () => population(state.town);
 
-const STORY: Quest[] = [
+export const STORY: Quest[] = [
   {
     icon: '✏️',
     title: 'Name your town',
     desc: 'Click the town name at the top-left and give it a name. It becomes your website name.',
     goal: 1,
-    value: () => yes(town().name !== DEFAULT_TOWN_NAME),
+    value: () => yes(!hasDefaultName(town())),
     xp: 30,
     coins: 20,
   },
@@ -74,6 +77,15 @@ const STORY: Quest[] = [
     value: stat('decorPlaced'),
     xp: 30,
     coins: 20,
+  },
+  {
+    icon: '🏡',
+    title: 'Build a home',
+    desc: 'Open the City tab and place a Home. People move in and your town grows.',
+    goal: 1,
+    value: stat('cityBuilt'),
+    xp: 30,
+    coins: 25,
   },
   {
     icon: '🫧',
@@ -156,6 +168,24 @@ const STORY: Quest[] = [
     xp: 60,
     coins: 50,
   },
+  {
+    icon: '🏘️',
+    title: 'From village to town',
+    desc: 'Reach 40 people. Build homes, and wait: buildings grow by themselves.',
+    goal: 40,
+    value: people,
+    xp: 70,
+    coins: 60,
+  },
+  {
+    icon: '🏢',
+    title: 'Going up',
+    desc: 'Have a city building with 4 floors (grow it, or add a floor yourself).',
+    goal: 4,
+    value: tallest,
+    xp: 60,
+    coins: 50,
+  },
   { icon: '🏘️', title: 'Growing town', desc: 'Have 4 houses in your town.', goal: 4, value: houses, xp: 60, coins: 50 },
   {
     icon: '⬆️',
@@ -193,6 +223,16 @@ const STORY: Quest[] = [
     xp: 100,
     coins: 100,
   },
+  {
+    icon: '🏙️',
+    title: 'Welcome to the city',
+    desc: 'Reach 160 people. Your roads become real streets with cars!',
+    goal: 160,
+    value: people,
+    xp: 140,
+    coins: 120,
+  },
+  { icon: '🌆', title: 'First skyscraper', desc: 'Have a building with 15 floors.', goal: 15, value: tallest, xp: 160, coins: 150 },
   { icon: '🏙️', title: 'Big city', desc: 'Have 7 houses in your town.', goal: 7, value: houses, xp: 120, coins: 120 },
   {
     icon: '📰',
@@ -221,40 +261,49 @@ const STORY: Quest[] = [
     xp: 300,
     coins: 300,
   },
+  { icon: '🌃', title: 'Metropolis', desc: 'Reach 500 people. The biggest era of all.', goal: 500, value: people, xp: 400, coins: 400 },
 ];
 
 interface RepeatingQuest {
   stat: keyof Stats;
   icon: string;
-  title: (n: number) => string;
+  title: string;
   desc: string;
   base: number;
 }
 
-const REPEATING: RepeatingQuest[] = [
-  { stat: 'furnitureAdded', icon: '🛋️', title: (n) => `Add ${n} furniture`, desc: 'Add furniture inside any house.', base: 3 },
-  { stat: 'decorPlaced', icon: '🌷', title: (n) => `Plant ${n} nature items`, desc: 'Use the Nature tab.', base: 4 },
+export const REPEATING: RepeatingQuest[] = [
+  { stat: 'furnitureAdded', icon: '🛋️', title: 'Add {n} furniture', desc: 'Add furniture inside any house.', base: 3 },
+  { stat: 'decorPlaced', icon: '🌷', title: 'Plant {n} nature items', desc: 'Use the Nature tab.', base: 4 },
   {
     stat: 'edits',
     icon: '✍️',
-    title: (n) => `Improve ${n} furniture`,
+    title: 'Improve {n} furniture',
     desc: 'Write your own words in furniture that still has example text.',
     base: 3,
   },
-  { stat: 'housesBuilt', icon: '🏗️', title: (n) => `Build ${n} house${n > 1 ? 's' : ''}`, desc: 'Every house is a new page.', base: 1 },
-  { stat: 'styled', icon: '🎨', title: (n) => `Restyle ${n} things`, desc: 'Use the 🎨 Style tab or the Design Studio.', base: 5 },
-  { stat: 'collected', icon: '🫧', title: (n) => `Pop ${n} treasure bubbles`, desc: 'Click the bubbles above your houses.', base: 4 },
-  { stat: 'previews', icon: '🔮', title: (n) => `Check your site ${n} times`, desc: 'Open the Magic Window.', base: 2 },
+  { stat: 'housesBuilt', icon: '🏗️', title: 'Build {n} pages', desc: 'Every house is a new page.', base: 1 },
+  {
+    stat: 'grown',
+    icon: '🏗️',
+    title: 'Grow {n} new floors',
+    desc: 'Buildings in the City tab grow by themselves. Add floors to speed it up.',
+    base: 5,
+  },
+  { stat: 'styled', icon: '🎨', title: 'Restyle {n} things', desc: 'Use the 🎨 Style tab or the Design Studio.', base: 5 },
+  { stat: 'collected', icon: '🫧', title: 'Pop {n} treasure bubbles', desc: 'Click the bubbles above your houses.', base: 4 },
+  { stat: 'previews', icon: '🔮', title: 'Check your site {n} times', desc: 'Open the Magic Window.', base: 2 },
   {
     stat: 'upgrades',
     icon: '⬆️',
-    title: (n) => `Upgrade ${n} house${n > 1 ? 's' : ''}`,
+    title: 'Upgrade {n} buildings',
     desc: 'Click a house and press Upgrade.',
     base: 1,
   },
 ];
 
 export const STORY_LENGTH = STORY.length;
+export const REPEATING_LENGTH = REPEATING.length;
 
 const repeatingAt = (index: number) => {
   const round = index - STORY.length;
@@ -270,8 +319,8 @@ export function currentQuest(): Quest {
   const start = state.progress.questBase;
   return {
     icon: quest.icon,
-    title: quest.title(goal),
-    desc: quest.desc,
+    title: t(quest.title, { n: goal }),
+    desc: t(quest.desc),
     goal,
     value: () => state.progress.stats[quest.stat] - start,
     xp: 30 + level() * 8,

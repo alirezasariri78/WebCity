@@ -14,7 +14,8 @@ export type HouseKind =
   | 'guild'
   | 'bank'
   | 'maphouse'
-  | 'castle';
+  | 'castle'
+  | 'custom';
 
 export type FurnitureKind =
   | 'sign'
@@ -92,7 +93,11 @@ export type StyleKey =
   | 'anchor'
   | 'css'
   | 'navStyle'
-  | 'sticky';
+  | 'sticky'
+  | 'span'
+  | 'valign'
+  | 'justify'
+  | 'dir';
 
 /** Looks for the whole site, one page, or one part. The most specific layer wins. */
 export type StyleProps = Partial<Record<StyleKey, string>>;
@@ -118,6 +123,16 @@ export interface Furniture {
   edited?: boolean;
 }
 
+export type RoofShape = 'pyramid' | 'flat' | 'spire' | 'dome' | 'castle';
+
+/** How a custom building looks. */
+export interface BuildingLook {
+  wall: string;
+  roof: string;
+  shape: RoofShape;
+  emoji?: string;
+}
+
 export interface House {
   id: string;
   kind: HouseKind;
@@ -127,9 +142,24 @@ export interface House {
   items: Furniture[];
   builtAt: number;
   level?: number;
+  look?: BuildingLook;
   style?: StyleProps;
   seoTitle?: string;
   seoDesc?: string;
+}
+
+export type CityKind = 'home' | 'shop' | 'school' | 'office' | 'hospital' | 'factory' | 'stadium' | 'landmark' | 'custom';
+
+/** A building that is part of the town but not a page: homes, offices, schools… They grow taller over time. */
+export interface CityBuilding {
+  id: string;
+  kind: CityKind;
+  x: number;
+  y: number;
+  floors: number;
+  builtAt: number;
+  name?: string;
+  look?: BuildingLook;
 }
 
 export interface Decor {
@@ -139,12 +169,19 @@ export interface Decor {
   y: number;
 }
 
+export type TextDirection = 'auto' | 'ltr' | 'rtl';
+
+export type SiteFeature = 'backToTop' | 'readingBar' | 'darkToggle' | 'pageFade';
+
 export interface SiteSettings {
   description?: string;
   footer?: string;
   logoImage?: string;
   lang?: string;
+  dir?: TextDirection;
   hideBuiltWith?: boolean;
+  /** Extras unlocked as the city grows. `false` means the player switched it off. */
+  features?: Partial<Record<SiteFeature, boolean>>;
 }
 
 export interface Town {
@@ -153,6 +190,7 @@ export interface Town {
   theme: ThemeId;
   houses: House[];
   decor: Decor[];
+  city: CityBuilding[];
   style?: StyleProps;
   site?: SiteSettings;
 }
@@ -170,6 +208,8 @@ export interface Stats {
   upgrades: number;
   collected: number;
   styled: number;
+  cityBuilt: number;
+  grown: number;
 }
 
 export interface Progress {
@@ -186,9 +226,15 @@ export interface Progress {
   toolsUsed?: string[];
 }
 
+export type Lang = 'en' | 'fa';
+
 export interface Settings {
   muted: boolean;
   welcomed: boolean;
+  lang: Lang;
+  tourDone: boolean;
+  /** Show every design tool instead of the basic ones. */
+  allTools: boolean;
 }
 
 export interface SaveData {

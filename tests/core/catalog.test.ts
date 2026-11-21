@@ -8,7 +8,8 @@ import {
   PICTURES,
   THEMES,
   furnitureDef,
-  houseScale,
+  houseFloors,
+  MAX_LAND,
   landSize,
   resolveImage,
   roomSlots,
@@ -80,13 +81,13 @@ describe('catalog', () => {
 
 describe('town rules', () => {
   it('grows the land with the level but never past the maximum', () => {
-    expect(landSize(1)).toBe(7);
-    expect(landSize(100)).toBe(16);
+    expect(landSize(1)).toBe(10);
+    expect(landSize(100)).toBe(MAX_LAND);
   });
 
   it('makes upgrades bigger, roomier and pricier', () => {
     for (let level = 1; level < MAX_HOUSE_LEVEL; level++) {
-      expect(houseScale(level + 1)).toBeGreaterThan(houseScale(level));
+      expect(houseFloors(level + 1)).toBeGreaterThanOrEqual(houseFloors(level));
       expect(roomSlots('cottage', level + 1)).toBeGreaterThan(roomSlots('cottage', level));
       expect(upgradeCost('cottage', level + 1)).toBeGreaterThan(upgradeCost('cottage', level));
     }

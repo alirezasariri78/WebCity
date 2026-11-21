@@ -1,4 +1,4 @@
-import { DECOR, FURNITURE, HOUSES, THEMES, UPGRADE_LEVEL, landSize } from '../catalog';
+import { CITY, DECOR, FURNITURE, HOUSES, THEMES, UPGRADE_LEVEL, landSize } from '../catalog';
 import { GROUPS } from '../design';
 
 /** Total XP needed to reach a level: L2 = 60, L3 = 160, L4 = 300… */
@@ -15,16 +15,23 @@ export function levelProgress(xp: number) {
   return { level, into, need, pct: into / need };
 }
 
-/** Human-readable list of everything that becomes available at `level`. */
-export function unlocksAt(level: number): string[] {
+export interface Unlock {
+  emoji: string;
+  name: string;
+  detail?: string;
+}
+
+/** Everything that becomes available at `level`. Names are in English; the UI translates them. */
+export function unlocksAt(level: number): Unlock[] {
   const at = <T extends { level: number }>(list: T[]) => list.filter((item) => item.level === level);
   return [
-    ...at(HOUSES).map((h) => `${h.emoji} ${h.name} (${h.web})`),
-    ...at(FURNITURE).map((f) => `${f.emoji} ${f.name} (${f.web})`),
-    ...at(DECOR).map((d) => `${d.emoji} ${d.name}`),
-    ...at(THEMES).map((t) => `${t.emoji} ${t.name} town style`),
-    ...at(GROUPS).map((g) => `${g.emoji} Design tool: ${g.tool} (${g.name})`),
-    ...(level === UPGRADE_LEVEL ? ['⬆️ House upgrades: bigger houses with more room!'] : []),
-    ...(landSize(level) > landSize(level - 1) ? ['🗺️ Your land grows bigger!'] : []),
+    ...at(HOUSES).map((h) => ({ emoji: h.emoji, name: h.name, detail: h.web })),
+    ...at(CITY).map((c) => ({ emoji: c.emoji, name: c.name })),
+    ...at(FURNITURE).map((f) => ({ emoji: f.emoji, name: f.name, detail: f.web })),
+    ...at(DECOR).map((d) => ({ emoji: d.emoji, name: d.name })),
+    ...at(THEMES).map((t) => ({ emoji: t.emoji, name: t.name, detail: 'Town style' })),
+    ...at(GROUPS).map((g) => ({ emoji: g.emoji, name: g.tool, detail: g.name })),
+    ...(level === UPGRADE_LEVEL ? [{ emoji: '⬆️', name: 'Building upgrades' }] : []),
+    ...(landSize(level) > landSize(level - 1) ? [{ emoji: '🗺️', name: 'More land to build on' }] : []),
   ];
 }

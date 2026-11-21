@@ -7,6 +7,7 @@ import { canRedo, canUndo, checkpoint, redo, undo } from '../../game/history';
 import { bump, level, reward, spend } from '../../game/progress';
 import { commit, state } from '../../game/store';
 import { esc, fileNames, orderedHouses } from '../../site';
+import { t } from '../../i18n';
 import { promptModal } from '../common/modal';
 import type { StyleTarget } from '../common/styleEditor';
 import { renderInspector, type InspectorHost } from './inspector';
@@ -55,32 +56,35 @@ export function renderHouseEditor() {
   const def = houseDef(house.kind);
   const isLive = session.view === 'live';
   const pageOptions = orderedHouses(state.town)
-    .map((p) => `<option value="${p.id}"${p.id === house.id ? ' selected' : ''}>${houseDef(p.kind).emoji} ${esc(p.name)}</option>`)
+    .map(
+      (p) =>
+        `<option value="${p.id}"${p.id === house.id ? ' selected' : ''}>${p.look?.emoji ?? houseDef(p.kind).emoji} ${esc(p.name)}</option>`,
+    )
     .join('');
 
   root.innerHTML = `
   <div class="int-top">
-    <button class="btn" data-exit>← Town</button>
-    <div class="int-title"><span class="int-emoji">${def.emoji}</span><div><button class="linklike" data-rename>${esc(house.name)} ✏️</button><div class="muted small">${def.web} · <code>${fileNames(state.town).get(house.id)}</code></div></div></div>
-    <select class="input page-switch" data-switch title="Jump to another house">${pageOptions}</select>
-    <div class="row tight"><button class="icon-btn big" data-undo title="Undo (Ctrl+Z)">↶</button><button class="icon-btn big" data-redo title="Redo (Ctrl+Y)">↷</button></div>
-    <button class="btn${session.selectedId ? '' : ' active-soft'}" data-page>🎨 Page design</button>
-    <button class="btn magic" data-preview>🔮 Preview</button>
+    <button class="btn" data-exit>${t('← Town')}</button>
+    <div class="int-title"><span class="int-emoji">${house.look?.emoji ?? def.emoji}</span><div><button class="linklike" data-rename>${esc(house.name)} ✏️</button><div class="muted small">${t(def.web)} · <code>${fileNames(state.town).get(house.id)}</code></div></div></div>
+    <select class="input page-switch" data-switch title="${t('Jump to another page')}">${pageOptions}</select>
+    <div class="row tight"><button class="icon-btn big" data-undo title="${t('Undo (Ctrl+Z)')}">↶</button><button class="icon-btn big" data-redo title="${t('Redo (Ctrl+Y)')}">↷</button></div>
+    <button class="btn${session.selectedId ? '' : ' active-soft'}" data-page>🎨 ${t('Page design')}</button>
+    <button class="btn magic" data-preview>🔮 ${t('Preview')}</button>
   </div>
   <div class="int-body">
     <aside class="palette panel"></aside>
     <section class="center">
       <div class="center-tabs">
-        <div class="seg"><button data-view="room" class="${isLive ? '' : 'on'}">🛋️ Room</button><button data-view="live" class="${isLive ? 'on' : ''}">🔮 Live page</button></div>
+        <div class="seg"><button data-view="room" class="${isLive ? '' : 'on'}">🛋️ ${t('Room')}</button><button data-view="live" class="${isLive ? 'on' : ''}">🔮 ${t('Live page')}</button></div>
         <div class="seg"${isLive ? '' : ' hidden'}><button data-device="desktop" class="${live.device === 'desktop' ? 'on' : ''}">🖥️</button><button data-device="phone" class="${live.device === 'phone' ? 'on' : ''}">📱</button></div>
-        <span class="muted small center-hint">${isLive ? 'Click any part of the page to edit it' : 'Click furniture to edit · drag to reorder'}</span>
+        <span class="muted small center-hint">${isLive ? t('Click any part of the page to edit it') : t('Click furniture to edit · drag to reorder')}</span>
       </div>
       <div class="room" style="--wall:${def.wall};--trim:${def.roof}"${isLive ? ' hidden' : ''}>
         <div class="room-wall"><div class="room-window"></div><div class="room-window"></div></div>
         <div class="room-floor"></div>
         <div class="room-content"></div>
       </div>
-      <div class="live"${isLive ? '' : ' hidden'}><div class="live-box"><iframe title="Live page" sandbox="allow-scripts"></iframe></div></div>
+      <div class="live"${isLive ? '' : ' hidden'}><div class="live-box"><iframe title="${t('Live page')}" sandbox="allow-scripts"></iframe></div></div>
     </section>
     <aside class="inspector panel"></aside>
   </div>`;
@@ -102,7 +106,7 @@ function bindTopBar(house: House) {
   });
   part('[data-preview]').addEventListener('click', () => options.onPreview(house.id));
   part('[data-rename]').addEventListener('click', async () => {
-    const name = await promptModal('Rename page', 'This name shows in your website menu.', house.name, {
+    const name = await promptModal(t('Rename page'), t('This name shows in your website menu.'), house.name, {
       emoji: houseDef(house.kind).emoji,
       max: 24,
     });
@@ -141,13 +145,13 @@ function bindTopBar(house: House) {
 export function doUndo() {
   if (!undo()) return;
   sfx('whoosh');
-  events.emit('toast', { text: '↶ Undone', kind: 'info' });
+  events.emit('toast', { text: t('↶ Undone'), kind: 'info' });
 }
 
 export function doRedo() {
   if (!redo()) return;
   sfx('whoosh');
-  events.emit('toast', { text: '↷ Redone', kind: 'info' });
+  events.emit('toast', { text: t('↷ Redone'), kind: 'info' });
 }
 
 function refreshUndo() {
@@ -188,12 +192,12 @@ function roomIsFull(house: House): boolean {
   const houseLevel = house.level ?? 1;
   const advice =
     houseLevel >= MAX_HOUSE_LEVEL
-      ? 'This house is as big as it gets. Remove something, or build another house!'
+      ? t('This building is as big as it gets. Remove something, or build another page!')
       : level() >= UPGRADE_LEVEL
-        ? 'Upgrade this house on the map to get more room!'
-        : `House upgrades unlock at level ${UPGRADE_LEVEL}. Until then, build another house for more pages!`;
+        ? t('Upgrade this building on the map to get more room!')
+        : t('Upgrades unlock at level {n}. Until then, build another page!', { n: UPGRADE_LEVEL });
   sfx('error');
-  events.emit('toast', { text: `🏠 The room is full (${slots} pieces). ${advice}`, kind: 'bad' });
+  events.emit('toast', { text: `${t('🏠 The room is full ({n} parts).', { n: slots })} ${advice}`, kind: 'bad' });
   return true;
 }
 
@@ -202,7 +206,10 @@ function addFurniture(kind: FurnitureKind, button: HTMLElement) {
   const def = furnitureDef(kind);
   if (def.level > level()) {
     sfx('error');
-    events.emit('toast', { text: `🔒 ${def.name} unlocks at level ${def.level}. Keep building to level up!`, kind: 'bad' });
+    events.emit('toast', {
+      text: t('🔒 {name} unlocks at level {level}. Keep building to level up!', { name: t(def.name), level: def.level }),
+      kind: 'bad',
+    });
     return;
   }
   if (roomIsFull(house) || (def.cost && !spend(def.cost))) return;

@@ -1,4 +1,5 @@
 export { DECOR_VARIANTS, decorAnims, decorArt } from './decor';
 export { houseAnims, houseArt, houseTop } from './houses';
 export { formatPoints, shade, type Anim, type AnimKind, type Art, type Point } from './svg';
-export { VILLAGER_VARIANTS, villagerArt } from './villagers';
+export { CAR_VARIANTS, VILLAGER_VARIANTS, carArt, villagerArt } from './villagers';
+export { floorHeight, towerAnims, towerArt, towerHeight, towerTop, type TowerOptions } from './towers';

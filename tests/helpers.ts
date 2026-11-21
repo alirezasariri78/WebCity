@@ -2,7 +2,7 @@ import { makeFurniture, makeHouse, newGame } from '../src/game/factory';
 import type { Furniture, FurnitureKind, House, HouseKind, SaveData, Town } from '../src/core/types';
 
 export function town(overrides: Partial<Town> = {}): Town {
-  return { ...newGame().town, ...overrides };
+  return { ...newGame().town, city: [], ...overrides };
 }
 
 export function house(kind: HouseKind, x: number, y: number, extra: Partial<House> = {}): House {

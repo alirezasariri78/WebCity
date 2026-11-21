@@ -6,7 +6,7 @@ export interface Art {
   box: [x0: number, y0: number, x1: number, y1: number];
 }
 
-export type AnimKind = 'smoke' | 'flag' | 'orb' | 'sway' | 'glow' | 'spray' | 'duck' | 'blades' | 'fire' | 'bob';
+export type AnimKind = 'smoke' | 'flag' | 'orb' | 'sway' | 'glow' | 'spray' | 'duck' | 'blades' | 'fire' | 'bob' | 'blink';
 
 /** A moving detail drawn live on top of a sprite, at an offset from its anchor. */
 export interface Anim {

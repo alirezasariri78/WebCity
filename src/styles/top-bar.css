@@ -71,7 +71,7 @@
   height: 22px;
   background: #ece9ff;
   border-radius: 0 12px 12px 0;
-  margin-left: -10px;
+  margin-inline-start: -10px;
   position: relative;
   overflow: hidden;
 }
@@ -91,7 +91,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 22px;
-  padding-left: 8px;
+  padding-inline-start: 8px;
   color: var(--ink);
 }
 .stat {

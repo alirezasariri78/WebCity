@@ -82,11 +82,12 @@ function drawNextLand(ctx: CanvasRenderingContext2D, scene: Scene) {
 }
 
 function drawTiles(ctx: CanvasRenderingContext2D, scene: Scene) {
-  const { theme, land: n, roads } = scene;
+  const { theme, land: n, roads, paved } = scene;
+  const road = paved ? ASPHALT : theme.road;
   const grass = grassPattern(ctx, theme.ground[0]);
   const grassEdge = shade(theme.ground[0], -0.08);
-  const roadEdge = shade(theme.road, -0.12);
-  const pebble = shade(theme.road, -0.15);
+  const roadEdge = shade(road, -0.12);
+  const pebble = shade(road, -0.15);
   ctx.lineWidth = 1;
 
   for (let x = 0; x < n; x++) {
@@ -94,11 +95,13 @@ function drawTiles(ctx: CanvasRenderingContext2D, scene: Scene) {
       const c = iso(x, y);
       const isRoad = roads.has(`${x},${y}`);
       diamond(ctx, c.x, c.y);
-      ctx.fillStyle = isRoad ? theme.road : theme.ground[(x + y) % 2];
+      ctx.fillStyle = isRoad ? road : theme.ground[(x + y) % 2];
       ctx.fill();
       ctx.strokeStyle = isRoad ? roadEdge : grassEdge;
       ctx.stroke();
-      if (isRoad) {
+      if (isRoad && paved) {
+        drawLaneMarks(ctx, c.x, c.y, roads, x, y);
+      } else if (isRoad) {
         ctx.fillStyle = pebble;
         ctx.beginPath();
         ctx.arc(c.x - 10, c.y - 2, 2, 0, Math.PI * 2);
@@ -114,6 +117,27 @@ function drawTiles(ctx: CanvasRenderingContext2D, scene: Scene) {
       }
     }
   }
+}
+
+const ASPHALT = '#6b7280';
+
+/** Dashed white lines along the street, in the direction the road continues. */
+function drawLaneMarks(ctx: CanvasRenderingContext2D, cx: number, cy: number, roads: Set<string>, x: number, y: number) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.7)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  if (roads.has(`${x + 1},${y}`) || roads.has(`${x - 1},${y}`)) {
+    ctx.moveTo(cx - TILE_W / 4, cy - TILE_H / 4);
+    ctx.lineTo(cx + TILE_W / 4, cy + TILE_H / 4);
+  }
+  if (roads.has(`${x},${y + 1}`) || roads.has(`${x},${y - 1}`)) {
+    ctx.moveTo(cx + TILE_W / 4, cy - TILE_H / 4);
+    ctx.lineTo(cx - TILE_W / 4, cy + TILE_H / 4);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function drawGround(ctx: CanvasRenderingContext2D, scene: Scene) {
@@ -140,14 +164,11 @@ export class GroundCache {
     const b = bounds(scene.land);
     const width = b.x1 - b.x0;
     const height = b.y1 - b.y0;
-    const bucket = 2 ** (Math.ceil(Math.log2(pixelsPerUnit) * 3) / 3);
+    // Big towns would need a huge bitmap when zoomed in; cap it (a little softer, much faster).
+    const wanted = 2 ** (Math.ceil(Math.log2(pixelsPerUnit) * 3) / 3);
+    const bucket = Math.min(wanted, MAX_CACHE_PX / width, MAX_CACHE_PX / height);
 
-    if (width * bucket > MAX_CACHE_PX || height * bucket > MAX_CACHE_PX) {
-      drawGround(ctx, scene);
-      return;
-    }
-
-    const key = `${scene.theme.id}|${scene.land}|${scene.roadKey}|${bucket.toFixed(3)}`;
+    const key = `${scene.theme.id}|${scene.land}|${scene.roadKey}|${scene.paved}|${bucket.toFixed(3)}`;
     if (key !== this.key || !this.canvas) {
       this.key = key;
       this.canvas ??= document.createElement('canvas');

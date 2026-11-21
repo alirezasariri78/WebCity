@@ -26,6 +26,8 @@ export interface Villager extends SpriteRef {
   moving: boolean;
   alpha: number;
   seed: number;
+  /** Walkers bob up and down; cars glide. */
+  bob: boolean;
 }
 
 export interface Bubble {
@@ -71,6 +73,8 @@ export interface Scene {
   nextLevel: number;
   roads: Set<string>;
   roadKey: string;
+  /** Paved streets with lane marks once the town becomes a city. */
+  paved: boolean;
   /** Sorted back-to-front. */
   objects: SceneObject[];
   villagers: Villager[];

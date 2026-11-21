@@ -1,7 +1,7 @@
 .quest-card {
   position: absolute;
   top: 16px;
-  left: 16px;
+  inset-inline-start: 16px;
   width: 290px;
   z-index: 6;
   background: #fff;
@@ -114,7 +114,7 @@
 
 .helper {
   position: absolute;
-  right: 16px;
+  inset-inline-end: 16px;
   bottom: 16px;
   z-index: 7;
   display: flex;
@@ -140,7 +140,7 @@
   content: '!';
   position: absolute;
   top: -4px;
-  right: -4px;
+  inset-inline-end: -4px;
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -181,7 +181,7 @@
 .inside .helper {
   bottom: auto;
   top: 76px;
-  right: 16px;
+  inset-inline-end: 16px;
 }
 .inside .helper .helper-face {
   width: 46px;

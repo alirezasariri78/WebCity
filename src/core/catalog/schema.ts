@@ -1,4 +1,6 @@
-import type { DecorKind, FurnitureKind, HouseKind, ThemeId } from '../types';
+import type { CityKind, DecorKind, FurnitureKind, HouseKind, RoofShape, ThemeId } from '../types';
+
+export type { RoofShape };
 
 export interface Option {
   value: string;
@@ -37,8 +39,6 @@ export interface FurnitureDef {
   defaults: Record<string, string>;
 }
 
-export type RoofShape = 'pyramid' | 'flat' | 'spire' | 'dome' | 'castle';
-
 export interface HouseDef {
   kind: HouseKind;
   name: string;
@@ -52,6 +52,27 @@ export interface HouseDef {
   height: number;
   roof3d: RoofShape;
   template: { kind: FurnitureKind; props?: Record<string, string> }[];
+}
+
+/** Extra detail drawn on a city building. */
+export type BuildingTrim = 'none' | 'awning' | 'cross' | 'chimney' | 'flag' | 'glass' | 'stadium';
+
+export interface CityDef {
+  kind: CityKind;
+  name: string;
+  emoji: string;
+  desc: string;
+  level: number;
+  cost: number;
+  /** People living or working here per floor. */
+  people: number;
+  /** Coins per floor each income tick. */
+  income: number;
+  maxFloors: number;
+  wall: string;
+  roof: string;
+  shape: RoofShape;
+  trim: BuildingTrim;
 }
 
 export interface DecorDef {

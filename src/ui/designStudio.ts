@@ -1,18 +1,20 @@
 import { THEMES, resolveImage, themeDef } from '../core/catalog';
 import { isStyled } from '../core/design';
-import type { ThemeId } from '../core/types';
+import { ERAS, SITE_FEATURES, isFeatureUnlocked } from '../core/rules';
+import type { TextDirection, ThemeId } from '../core/types';
 import { sfx } from '../game/audio';
 import { events } from '../game/events';
 import { checkpoint } from '../game/history';
 import { bump, level, reward } from '../game/progress';
 import { commit, state } from '../game/store';
+import { t } from '../i18n';
 import { esc, orderedHouses, pageHTML } from '../site';
 import { shrinkImage } from './common/download';
 import { openModal } from './common/modal';
 import { bindStyleEditor, styleEditorHTML } from './common/styleEditor';
 import { LOGOS } from './hud/dialogs';
 
-type Tab = 'look' | 'brand' | 'footer';
+type Tab = 'look' | 'brand' | 'extras' | 'footer';
 
 const LANGUAGES: [code: string, name: string][] = [
   ['en', 'English'],
@@ -23,17 +25,23 @@ const LANGUAGES: [code: string, name: string][] = [
   ['de', 'Deutsch'],
   ['tr', 'Türkçe'],
 ];
+export const DIRECTIONS: [TextDirection, string][] = [
+  ['auto', 'Automatic (from the language)'],
+  ['ltr', 'Left to right →'],
+  ['rtl', '← Right to left'],
+];
 const PREVIEW_WIDTH = 1200;
 
 let tab: Tab = 'look';
 
 export function openDesignStudio(onClose: () => void) {
   sfx('whoosh');
+  const tabButton = (id: Tab, label: string) => `<button data-tab="${id}">${label}</button>`;
   const modal = openModal(
     `<div class="studio">
-      <div class="studio-head"><h2>🎨 Design Studio <span class="muted small">The look of your whole website</span></h2>
-        <div class="seg"><button data-tab="look">🎨 Look</button><button data-tab="brand">🏷️ Name & logo</button><button data-tab="footer">📄 Footer & Google</button></div></div>
-      <div class="studio-body"><div class="studio-panel"></div><div class="studio-preview"><div class="mini-label">🔮 Home page preview</div><div class="studio-frame"><iframe title="Preview" sandbox="allow-scripts"></iframe></div></div></div>
+      <div class="studio-head"><h2>🎨 ${t('Design Studio')} <span class="muted small">${t('The look of your whole website')}</span></h2>
+        <div class="seg">${tabButton('look', `🎨 ${t('Look')}`)}${tabButton('brand', `🏷️ ${t('Name & language')}`)}${tabButton('extras', `✨ ${t('Extras')}`)}${tabButton('footer', `📄 ${t('Footer & Google')}`)}</div></div>
+      <div class="studio-body"><div class="studio-panel"></div><div class="studio-preview"><div class="mini-label">🔮 ${t('Home page preview')}</div><div class="studio-frame"><iframe title="${t('Preview')}" sandbox="allow-scripts"></iframe></div></div></div>
     </div>`,
     { cls: 'wide', onClose },
   );
@@ -61,22 +69,25 @@ export function openDesignStudio(onClose: () => void) {
 
   const renderLook = () => {
     const playerLevel = level();
-    const themes = THEMES.map((t) => {
-      const locked = t.level > playerLevel;
-      return `<button class="theme-chip${state.town.theme === t.id ? ' on' : ''}${locked ? ' locked' : ''}" data-theme="${t.id}" style="--a:${t.site.heroFrom};--b:${t.site.heroTo}"><span></span>${locked ? '🔒' : t.emoji} ${t.name}</button>`;
+    const themes = THEMES.map((th) => {
+      const locked = th.level > playerLevel;
+      return `<button class="theme-chip${state.town.theme === th.id ? ' on' : ''}${locked ? ' locked' : ''}" data-theme="${th.id}" style="--a:${th.site.heroFrom};--b:${th.site.heroTo}"><span></span>${locked ? '🔒' : th.emoji} ${t(th.name)}</button>`;
     }).join('');
-    panel.innerHTML = `<h3>Town style <small class="muted">(a quick full look)</small></h3>
+    panel.innerHTML = `<h3>${t('Town style')} <small class="muted">${t('(a quick full look)')}</small></h3>
       <div class="theme-pick">${themes}</div>
-      <h3>Fine-tune <small class="muted">(changes every page)</small></h3>
+      <h3>${t('Fine-tune')} <small class="muted">${t('(changes every page)')}</small></h3>
       <div class="style-ed">${styleEditorHTML('site', state.town.style)}</div>
-      ${isStyled(state.town.style) ? '<button class="btn small block danger-soft" data-reset>↺ Reset to the town style</button>' : ''}`;
+      ${isStyled(state.town.style) ? `<button class="btn small block danger-soft" data-reset>↺ ${t('Reset to the town style')}</button>` : ''}`;
 
     panel.querySelectorAll<HTMLButtonElement>('[data-theme]').forEach((b) =>
       b.addEventListener('click', () => {
         const theme = themeDef(b.dataset.theme as ThemeId);
         if (theme.level > level()) {
           sfx('error');
-          events.emit('toast', { text: `🔒 ${theme.name} unlocks at level ${theme.level}.`, kind: 'bad' });
+          events.emit('toast', {
+            text: t('🔒 {name} unlocks at level {level}. Finish quests to level up!', { name: t(theme.name), level: theme.level }),
+            kind: 'bad',
+          });
           return;
         }
         if (state.town.theme === theme.id) return;
@@ -108,21 +119,25 @@ export function openDesignStudio(onClose: () => void) {
       '',
     );
     const logoPreview = site.logoImage
-      ? `<div class="logo-prev"><img src="${esc(resolveImage(site.logoImage))}" alt=""><button class="btn small danger-soft" data-remove-logo>Remove</button></div>`
+      ? `<div class="logo-prev"><img src="${esc(resolveImage(site.logoImage))}" alt=""><button class="btn small danger-soft" data-remove-logo>${t('Remove')}</button></div>`
       : '';
     const languages = LANGUAGES.map(
       ([code, name]) => `<option value="${code}"${(site.lang ?? 'en') === code ? ' selected' : ''}>${name}</option>`,
     ).join('');
-    panel.innerHTML = `<label class="field"><span>Website name</span><input class="input" data-name maxlength="40" value="${esc(state.town.name)}"></label>
-      <div class="field"><span>Logo (emoji)</span><div class="logo-grid">${logos}</div></div>
-      <div class="field"><span>Or upload a logo picture</span>${logoPreview}
-        <label class="btn small upload">📁 Upload logo<input type="file" accept="image/*" data-logo-upload hidden></label>
-        <small class="hint">A small, wide picture works best (PNG with see-through background).</small></div>
-      <label class="field"><span>Language of the website</span><select class="input" data-lang>${languages}</select></label>`;
+    const directions = DIRECTIONS.map(
+      ([dir, name]) => `<option value="${dir}"${(site.dir ?? 'auto') === dir ? ' selected' : ''}>${t(name)}</option>`,
+    ).join('');
+    panel.innerHTML = `<label class="field"><span>${t('Website name')}</span><input class="input" data-name maxlength="40" value="${esc(state.town.name)}"></label>
+      <div class="field"><span>${t('Logo (emoji)')}</span><div class="logo-grid">${logos}</div></div>
+      <div class="field"><span>${t('Or upload a logo picture')}</span>${logoPreview}
+        <label class="btn small upload">📁 ${t('Upload logo')}<input type="file" accept="image/*" data-logo-upload hidden></label>
+        <small class="hint">${t('A small, wide picture works best (PNG with see-through background).')}</small></div>
+      <label class="field"><span>${t('Language of the website')}</span><select class="input" data-lang>${languages}</select></label>
+      <label class="field"><span>${t('Writing direction')}</span><select class="input" data-dir>${directions}</select><small class="hint">${t('Persian and Arabic read right to left. Each page and part can also choose its own direction.')}</small></label>`;
 
     panel.querySelector<HTMLInputElement>('[data-name]')!.addEventListener('input', (e) => {
       checkpoint(true);
-      state.town.name = (e.target as HTMLInputElement).value || 'My Town';
+      state.town.name = (e.target as HTMLInputElement).value || t('My Town');
       saved(false);
     });
     panel.querySelectorAll<HTMLButtonElement>('[data-logo]').forEach((b) =>
@@ -143,7 +158,7 @@ export function openDesignStudio(onClose: () => void) {
       if (!used.includes('logo')) {
         used.push('logo');
         reward(15, 10);
-        events.emit('toast', { text: '🏷️ Your own logo! Very professional.', kind: 'good' });
+        events.emit('toast', { text: t('🏷️ Your own logo! Very professional.'), kind: 'good' });
       }
       saved();
     });
@@ -153,16 +168,43 @@ export function openDesignStudio(onClose: () => void) {
       saved();
     });
     panel.querySelector<HTMLSelectElement>('[data-lang]')!.addEventListener('change', (e) => {
+      checkpoint();
       site.lang = (e.target as HTMLSelectElement).value;
+      saved(false);
+    });
+    panel.querySelector<HTMLSelectElement>('[data-dir]')!.addEventListener('change', (e) => {
+      checkpoint();
+      site.dir = (e.target as HTMLSelectElement).value as TextDirection;
       saved(false);
     });
   };
 
+  const renderExtras = () => {
+    const site = (state.town.site ??= {});
+    const rows = SITE_FEATURES.map((f) => {
+      const unlocked = isFeatureUnlocked(f, state.town);
+      const era = ERAS.find((e) => e.id === f.era)!;
+      const on = unlocked && site.features?.[f.id] !== false;
+      const control = unlocked
+        ? `<label class="switch"><input type="checkbox" data-feature="${f.id}"${on ? ' checked' : ''}><i></i><span>${on ? t('On') : t('Off')}</span></label>`
+        : `<span class="pop-note">🔒 ${t('Reach the {era} era', { era: `${era.emoji} ${t(era.name)}` })}</span>`;
+      return `<div class="feature-row${unlocked ? '' : ' locked'}"><span class="feature-emoji">${f.emoji}</span><div><b>${t(f.name)}</b><small>${t(f.desc)}</small></div>${control}</div>`;
+    }).join('');
+    panel.innerHTML = `<p class="muted">${t('Your website gets new tricks as your town grows. Switch them on or off here.')}</p>${rows}`;
+    panel.querySelectorAll<HTMLInputElement>('[data-feature]').forEach((input) =>
+      input.addEventListener('change', () => {
+        sfx('click');
+        site.features = { ...site.features, [input.dataset.feature!]: input.checked };
+        saved();
+      }),
+    );
+  };
+
   const renderFooter = () => {
     const site = (state.town.site ??= {});
-    panel.innerHTML = `<label class="field"><span>Footer text (bottom of every page)</span><input class="input" data-footer value="${esc(site.footer ?? '')}" placeholder="© ${new Date().getFullYear()} ${esc(state.town.name)}"></label>
-      <label class="switch"><input type="checkbox" data-hide-built${site.hideBuiltWith ? ' checked' : ''}><i></i><span>Hide "Built with Town Builder"</span></label>
-      <label class="field"><span>Website description for Google</span><textarea class="input" rows="3" maxlength="170" data-description placeholder="What is your website about? One or two sentences.">${esc(site.description ?? '')}</textarea><small class="hint">Each page can also have its own (inside the house → 🎨 Page design → 🔎 Google & tab).</small></label>`;
+    panel.innerHTML = `<label class="field"><span>${t('Footer text (bottom of every page)')}</span><input class="input" data-footer value="${esc(site.footer ?? '')}" placeholder="© ${new Date().getFullYear()} ${esc(state.town.name)}"></label>
+      <label class="switch"><input type="checkbox" data-hide-built${site.hideBuiltWith ? ' checked' : ''}><i></i><span>${t('Hide "Built with Town Builder"')}</span></label>
+      <label class="field"><span>${t('Website description for Google')}</span><textarea class="input" rows="3" maxlength="170" data-description placeholder="${t('What is your website about? One or two sentences.')}">${esc(site.description ?? '')}</textarea><small class="hint">${t('Each page can also have its own (inside the building → 🎨 Page design → 🔎 Google & tab).')}</small></label>`;
     panel.querySelector<HTMLInputElement>('[data-footer]')!.addEventListener('input', (e) => {
       checkpoint(true);
       site.footer = (e.target as HTMLInputElement).value;
@@ -181,7 +223,7 @@ export function openDesignStudio(onClose: () => void) {
 
   const render = () => {
     modal.el.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    ({ look: renderLook, brand: renderBrand, footer: renderFooter })[tab]();
+    ({ look: renderLook, brand: renderBrand, extras: renderExtras, footer: renderFooter })[tab]();
   };
 
   modal.el.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) =>

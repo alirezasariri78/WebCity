@@ -5,6 +5,7 @@ import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { state } from '../../game/store';
 import { esc, fileNames } from '../../site';
+import { t } from '../../i18n';
 import { bindStyleEditor, styleEditorHTML, type StyleTarget } from '../common/styleEditor';
 import { bindFields, fieldHTML, type SaveValue } from './fields';
 import { session } from './session';
@@ -35,8 +36,8 @@ const defaultTitle = (house: House) => (house.kind === 'townhall' ? state.town.n
 function seoHTML(house: House): string {
   const site = state.town.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
   return `<div class="fields">
-    <label class="field"><span>Title in the browser tab & Google</span><input class="input" data-seo="seoTitle" maxlength="70" value="${esc(house.seoTitle ?? '')}" placeholder="${esc(defaultTitle(house))}"><small class="hint">Short and clear. About 50–60 letters.</small></label>
-    <label class="field"><span>Description for Google</span><textarea class="input" rows="3" data-seo="seoDesc" maxlength="170" placeholder="One or two sentences about this page.">${esc(house.seoDesc ?? '')}</textarea><small class="hint">This shows under your link in search results.</small></label>
+    <label class="field"><span>${t('Title in the browser tab & Google')}</span><input class="input" data-seo="seoTitle" maxlength="70" value="${esc(house.seoTitle ?? '')}" placeholder="${esc(defaultTitle(house))}"><small class="hint">${t('Short and clear. About 50–60 letters.')}</small></label>
+    <label class="field"><span>${t('Description for Google')}</span><textarea class="input" rows="3" data-seo="seoDesc" maxlength="170" placeholder="${t('One or two sentences about this page.')}">${esc(house.seoDesc ?? '')}</textarea><small class="hint">${t('This shows under your link in search results.')}</small></label>
     <div class="serp"><div class="serp-url">${esc(site)}.site › ${esc(fileNames(state.town).get(house.id) ?? '')}</div><div class="serp-title"></div><div class="serp-desc"></div></div>
   </div>`;
 }
@@ -46,7 +47,7 @@ function bindSeo(el: HTMLElement, house: House, host: InspectorHost) {
   const desc = el.querySelector('.serp-desc')!;
   const refresh = () => {
     title.textContent = house.seoTitle || defaultTitle(house);
-    desc.textContent = house.seoDesc || state.town.site?.description || 'Add a description so people know what this page is about.';
+    desc.textContent = house.seoDesc || state.town.site?.description || t('Add a description so people know what this page is about.');
   };
   refresh();
   el.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-seo]').forEach((input) =>
@@ -61,15 +62,15 @@ function bindSeo(el: HTMLElement, house: House, host: InspectorHost) {
 
 function renderPageSettings(el: HTMLElement, house: House, host: InspectorHost) {
   const isDesign = session.pageTab === 'design';
-  const design = `<p class="muted small">These looks apply to every part of this page. Parts can still have their own look.</p>
+  const design = `<p class="muted small">${t('These looks apply to every part of this page. Parts can still have their own look.')}</p>
     <div class="style-ed">${styleEditorHTML('page', house.style)}</div>
-    ${isStyled(house.style) ? '<button class="btn small block danger-soft" data-reset>↺ Reset page design</button>' : ''}`;
+    ${isStyled(house.style) ? `<button class="btn small block danger-soft" data-reset>↺ ${t('Reset page design')}</button>` : ''}`;
 
-  el.innerHTML = `<div class="insp-head"><span class="insp-emoji">${houseDef(house.kind).emoji}</span><div><h3>Page design</h3><div class="muted small">How the whole <b>${esc(house.name)}</b> page looks</div></div></div>
+  el.innerHTML = `<div class="insp-head"><span class="insp-emoji">${house.look?.emoji ?? houseDef(house.kind).emoji}</span><div><h3>${t('Page design')}</h3><div class="muted small">${t('How the whole {name} page looks', { name: `<b>${esc(house.name)}</b>` })}</div></div></div>
     ${tabs(
       [
-        ['design', '🎨 Design'],
-        ['seo', '🔎 Google & tab'],
+        ['design', `🎨 ${t('Design')}`],
+        ['seo', `🔎 ${t('Google & tab')}`],
       ],
       session.pageTab,
       'data-page-tab',
@@ -102,19 +103,19 @@ function renderPart(el: HTMLElement, item: Furniture, host: InspectorHost) {
   const isContent = session.partTab === 'content';
   const content = def.fields.length
     ? def.fields.map((field) => fieldHTML(field, item)).join('')
-    : '<p class="muted">Nothing to write here. Try the 🎨 Style tab!</p>';
+    : `<p class="muted">${t('Nothing to write here. Try the 🎨 Style tab!')}</p>`;
   const style = `<div class="style-ed">${styleEditorHTML('part', item.style)}</div>
     <div class="row style-actions">
-      <button class="btn small" data-copy>📋 Copy style</button>
-      <button class="btn small" data-paste ${session.copiedStyle ? '' : 'disabled'}>📌 Paste style</button>
-      <button class="btn small danger-soft" data-reset ${isStyled(item.style) ? '' : 'disabled'}>↺ Reset</button>
+      <button class="btn small" data-copy>📋 ${t('Copy style')}</button>
+      <button class="btn small" data-paste ${session.copiedStyle ? '' : 'disabled'}>📌 ${t('Paste style')}</button>
+      <button class="btn small danger-soft" data-reset ${isStyled(item.style) ? '' : 'disabled'}>↺ ${t('Reset')}</button>
     </div>`;
 
-  el.innerHTML = `<div class="insp-head"><span class="insp-emoji">${def.emoji}</span><div><h3>${def.name}</h3><div class="muted small">On your website: <b>${def.web}</b></div></div><button class="icon-btn" data-deselect title="Page design">✕</button></div>
+  el.innerHTML = `<div class="insp-head"><span class="insp-emoji">${def.emoji}</span><div><h3>${t(def.name)}</h3><div class="muted small">${t('On your website:')} <b>${t(def.web)}</b></div></div><button class="icon-btn" data-deselect title="${t('Page design')}">✕</button></div>
     ${tabs(
       [
-        ['content', '✏️ Content'],
-        ['style', `🎨 Style${isStyled(item.style) ? ' •' : ''}`],
+        ['content', `✏️ ${t('Content')}`],
+        ['style', `🎨 ${t('Style')}${isStyled(item.style) ? ' •' : ''}`],
       ],
       session.partTab,
       'data-part-tab',
@@ -140,7 +141,7 @@ function renderPart(el: HTMLElement, item: Furniture, host: InspectorHost) {
   el.querySelector('[data-copy]')!.addEventListener('click', () => {
     session.copiedStyle = { ...item.style };
     sfx('coin');
-    events.emit('toast', { text: '📋 Style copied! Select another part and press Paste.', kind: 'info' });
+    events.emit('toast', { text: t('📋 Style copied! Select another part and press Paste.'), kind: 'info' });
     host.rerender();
   });
   el.querySelector('[data-paste]')!.addEventListener('click', () => {

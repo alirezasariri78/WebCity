@@ -75,6 +75,9 @@ export function backgroundCSS(s: StyleProps | undefined, resolveImage: (src: str
 export function styleClasses(s: StyleProps | undefined): string[] {
   if (!s) return [];
   const classes: string[] = [];
+  if (s.span && s.span !== 'full') classes.push(`span-${s.span}`);
+  if (s.justify && s.justify !== 'center') classes.push(`js-${s.justify}`);
+  if (s.valign && s.valign !== 'start') classes.push(`va-${s.valign}`);
   if (s.align) classes.push(`al-${s.align}`);
   if (s.pattern && s.pattern !== 'none') classes.push(`pat-${s.pattern}`);
   if (s.inputs) classes.push(`in-${s.inputs}`);
@@ -92,3 +95,7 @@ export function fontsUsed(s: StyleProps | undefined): string[] {
 export const isStyled = (s: StyleProps | undefined) => !!s && Object.values(s).some(hasValue);
 
 export const customCss = (s: StyleProps | undefined) => (s?.css ? s.css.replace(/[<>{}"]/g, '') : '');
+
+/** The `dir` attribute a layer asks for, if any. */
+export const directionOf = (s: StyleProps | undefined): 'ltr' | 'rtl' | undefined =>
+  s?.dir === 'ltr' || s?.dir === 'rtl' ? s.dir : undefined;

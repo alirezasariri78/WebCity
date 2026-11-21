@@ -118,6 +118,13 @@ const EFFECTS: Record<Anim['kind'], Effect> = {
     });
   },
 
+  blink(ctx, a, s, seed) {
+    const on = Math.sin(s * 3 + seed) > 0.2;
+    if (on) softGlow(ctx, a.x, a.y, 10, '255,60,60', 0.8);
+    ctx.fillStyle = on ? '#ff5252' : '#8e2a2a';
+    circle(ctx, a.x, a.y, 2);
+  },
+
   sway: () => {},
   bob: () => {},
 };

@@ -1,5 +1,6 @@
 import type { Stats } from '../../core/types';
 import { sfx } from '../audio';
+import { t } from '../../i18n';
 import { events } from '../events';
 import { state, touch } from '../store';
 import { ACHIEVEMENTS } from './achievements';
@@ -61,7 +62,7 @@ export function spend(coins: number): boolean {
   const missing = coins - state.progress.coins;
   if (missing > 0) {
     sfx('error');
-    events.emit('toast', { text: `You need ${missing} more 🪙. Finish quests or wait for visitors!`, kind: 'bad' });
+    events.emit('toast', { text: t('You need {coins} more 🪙. Finish quests or wait for visitors!', { coins: missing }), kind: 'bad' });
     return false;
   }
   state.progress.coins -= coins;

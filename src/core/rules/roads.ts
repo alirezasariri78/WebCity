@@ -8,7 +8,7 @@ export interface Tile {
 export interface RoadNetwork {
   /** "x,y" keys of every road tile. */
   roads: Set<string>;
-  /** One walking path per reachable house, from the Town Hall to that house. */
+  /** One walking path per reachable building, from the Town Hall to it. */
   paths: Tile[][];
 }
 
@@ -21,14 +21,14 @@ const NEIGHBOURS = [
 ] as const;
 
 /**
- * Shortest roads from the Town Hall to every house (breadth-first search).
- * Houses and decorations block the way; a house can only be a destination.
+ * Shortest roads from the Town Hall to every building (breadth-first search).
+ * Buildings and decorations block the way; a building can only be a destination.
  */
 export function buildRoads(town: Town, size: number): RoadNetwork {
   const hall = town.houses.find((h) => h.kind === 'townhall');
   if (!hall) return { roads: new Set(), paths: [] };
 
-  const blocked = new Set([...town.houses, ...town.decor].map((o) => key(o.x, o.y)));
+  const blocked = new Set([...town.houses, ...town.decor, ...(town.city ?? [])].map((o) => key(o.x, o.y)));
   const previous = new Map<string, Tile | null>([[key(hall.x, hall.y), null]]);
   const queue: Tile[] = [{ gx: hall.x, gy: hall.y }];
 
@@ -47,10 +47,10 @@ export function buildRoads(town: Town, size: number): RoadNetwork {
 
   const roads = new Set<string>();
   const paths: Tile[][] = [];
-  for (const house of town.houses) {
-    if (house === hall || !previous.has(key(house.x, house.y))) continue;
+  for (const building of [...town.houses, ...(town.city ?? [])]) {
+    if (building === hall || !previous.has(key(building.x, building.y))) continue;
     const path: Tile[] = [];
-    for (let tile: Tile | null = { gx: house.x, gy: house.y }; tile; tile = previous.get(key(tile.gx, tile.gy)) ?? null) {
+    for (let tile: Tile | null = { gx: building.x, gy: building.y }; tile; tile = previous.get(key(tile.gx, tile.gy)) ?? null) {
       path.unshift(tile);
       if (!blocked.has(key(tile.gx, tile.gy))) roads.add(key(tile.gx, tile.gy));
     }

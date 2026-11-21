@@ -114,3 +114,46 @@ describe('export', () => {
     expect(files.every((f) => f.content.length > 0)).toBe(true);
   });
 });
+
+describe('languages and direction', () => {
+  it('writes Persian websites right to left with a Persian font and words', () => {
+    const t = bakery();
+    t.site = { lang: 'fa' };
+    const html = pageHTML(t, t.houses[0], 'export');
+    const doc = parseHtml(html);
+    expect(doc.documentElement.getAttribute('lang')).toBe('fa');
+    expect(doc.documentElement.getAttribute('dir')).toBe('rtl');
+    expect(html).toContain('Vazirmatn');
+    expect(doc.querySelector('footer')!.textContent).toContain('شهرساز');
+  });
+
+  it('lets the player force a direction for the site, a page or one part', () => {
+    const t = bakery();
+    t.site = { lang: 'en', dir: 'rtl' };
+    t.houses[0].style = { dir: 'ltr' };
+    t.houses[0].items[0].style = { dir: 'rtl' };
+    const doc = parseHtml(pageHTML(t, t.houses[0], 'export'));
+    expect(doc.documentElement.getAttribute('dir')).toBe('rtl');
+    expect(doc.body.getAttribute('dir')).toBe('ltr');
+    expect(doc.querySelector('main .sec')!.getAttribute('dir')).toBe('rtl');
+  });
+
+  it('places parts side by side', () => {
+    const t = bakery();
+    t.houses[0].items[0].style = { span: 'half', valign: 'center' };
+    const section = parseHtml(pageHTML(t, t.houses[0], 'export')).querySelector('main .sec')!;
+    expect(section.classList).toContain('span-half');
+    expect(section.className).toMatch(/va-center/);
+  });
+});
+
+describe('website extras', () => {
+  it('adds unlocked extras to the page', () => {
+    const t = bakery();
+    t.city = Array.from({ length: 4 }, (_, i) => ({ id: `c${i}`, kind: 'home' as const, x: i, y: 9, floors: 20, builtAt: 0 }));
+    const html = pageHTML(t, t.houses[0], 'export');
+    expect(html).toContain('Back to top');
+    t.site = { features: { backToTop: false, readingBar: false, darkToggle: false, pageFade: false } };
+    expect(pageHTML(t, t.houses[0], 'export')).not.toContain('Back to top');
+  });
+});

@@ -1,7 +1,8 @@
 import { sfx } from '../../game/audio';
 import { rating } from '../../game/progress';
+import { t } from '../../i18n';
 
-const TIPS = [
+export const TIPS = [
   'Every house is a page on your website. Every piece of furniture is a part of that page!',
   'Visitors leave coins at the Town Hall. A better website brings more visitors.',
   'Come back every day for a bigger daily gift. Keep your streak going! 🔥',
@@ -16,7 +17,7 @@ let tipIndex = 0;
 
 export function mountHelper(el: HTMLElement) {
   helper = el;
-  helper.innerHTML = `<button class="helper-face" title="Click me for a tip!">👵</button><div class="bubble"><b>Rosa</b><span class="tip"></span><button class="btn small ghost" data-next>Next tip ›</button></div>`;
+  helper.innerHTML = `<button class="helper-face" title="${t('Click me for a tip!')}">👵</button><div class="bubble"><b>${t('Rosa')}</b><span class="tip"></span><button class="btn small ghost" data-next>${t('Next tip ›')}</button></div>`;
   helper.querySelector('.helper-face')!.addEventListener('click', () => {
     helper.classList.toggle('open');
     sfx('click');
@@ -38,7 +39,7 @@ export function mountHelper(el: HTMLElement) {
 export function updateHelper() {
   if (!helper) return;
   const hints = rating().hints;
-  const tips = hints.length ? hints : ['Your website is looking amazing! 🌟', ...TIPS];
+  const tips = hints.length ? hints.map((h) => t(h.text, h.vars)) : ['Your website is looking amazing! 🌟', ...TIPS].map((tip) => t(tip));
   const tip = tips[tipIndex % tips.length];
   const el = helper.querySelector('.tip')!;
   if (el.textContent !== tip) el.textContent = tip;

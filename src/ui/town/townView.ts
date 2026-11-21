@@ -1,24 +1,31 @@
-import { MAX_LAND, decorDef, houseDef, houseScale, landSize, roomSlots, themeDef, upgradeCost } from '../../core/catalog';
-import { buildRoads, type Tile } from '../../core/rules';
-import type { DecorKind, HouseKind } from '../../core/types';
+import { MAX_LAND, cityDef, cityLook, decorDef, houseDef, houseLook, landSize, roomSlots, themeDef, upgradeCost } from '../../core/catalog';
+import { ERAS, buildRoads, floorCap, type Tile } from '../../core/rules';
+import type { BuildingLook, CityBuilding, CityKind, Decor, DecorKind, House, HouseKind } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { makeHouse, uid } from '../../game/factory';
 import { checkpoint, clearHistory } from '../../game/history';
-import { bump, earnPassive, income, level, reward, spend } from '../../game/progress';
+import { bump, cityPopulation, currentEra, earnPassive, growCity, income, level, reward, spend } from '../../game/progress';
 import { commit, state, version } from '../../game/store';
-import { decorAnims, decorArt, houseAnims, houseArt, houseTop, DECOR_VARIANTS } from '../../render/art';
+import { t } from '../../i18n';
+import { CAR_VARIANTS, DECOR_VARIANTS, VILLAGER_VARIANTS, carArt, decorAnims, decorArt, villagerArt } from '../../render/art';
+import { cityVisual, houseVisual } from '../../render/buildings';
 import { TILE_H, TILE_W, iso, toGrid } from '../../render/geometry';
 import { TownRenderer } from '../../render/renderer';
 import { isAnimating, type Scene, type SceneObject, type SpriteRef } from '../../render/scene';
 import { onSpriteReady } from '../../render/sprites';
 import { confirmModal, promptModal } from '../common/modal';
-import { showPopover, type PopoverAction } from './popover';
+import { openBuildingDesigner } from './designer';
+import { floorCost, showPopover, type PopoverAction, type PopoverTarget } from './popover';
 import { spawnBubble, treasureOf, treasurePrize } from './treasure';
-import { VillagerCrowd } from './villagers';
+import { Crowd } from './villagers';
 
 export type PlaceMode =
-  { type: 'idle' } | { type: 'house'; kind: HouseKind } | { type: 'decor'; kind: DecorKind } | { type: 'move'; id: string };
+  | { type: 'idle' }
+  | { type: 'house'; kind: HouseKind; look?: BuildingLook; name?: string }
+  | { type: 'city'; kind: CityKind; look?: BuildingLook; name?: string }
+  | { type: 'decor'; kind: DecorKind }
+  | { type: 'move'; id: string };
 
 export interface TownViewOptions {
   onEnterHouse: (id: string) => void;
@@ -26,19 +33,26 @@ export interface TownViewOptions {
   onCoins: () => void;
 }
 
+type Point = { x: number; y: number };
+
 const INCOME_INTERVAL_MS = 20_000;
+const GROWTH_INTERVAL_MS = 35_000;
 const IDLE_AFTER_MS = 4000;
-const MIN_ZOOM = 0.3;
+const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.6;
 const DRAG_THRESHOLD_PX = 6;
+const MAX_PEOPLE = 60;
+const MAX_CARS = 24;
+const CITY_ERA_INDEX = ERAS.findIndex((e) => e.id === 'city');
 
 const scene: Scene = {
   theme: themeDef('meadow'),
-  land: 7,
+  land: 10,
   maxLand: MAX_LAND,
   nextLevel: 2,
   roads: new Set(),
   roadKey: '',
+  paved: false,
   objects: [],
   villagers: [],
   bubbles: [],
@@ -50,6 +64,16 @@ const scene: Scene = {
   pokedAt: new Map(),
   hover: null,
 };
+
+const people = new Crowd({
+  keyPrefix: 'villager',
+  variants: VILLAGER_VARIANTS,
+  art: villagerArt,
+  speed: [0.6, 1.2],
+  rest: [1, 4],
+  bob: true,
+});
+const cars = new Crowd({ keyPrefix: 'car', variants: CAR_VARIANTS, art: carArt, speed: [2.2, 3.4], rest: [0.5, 2], bob: false });
 
 let root: HTMLElement;
 let canvas: HTMLCanvasElement;
@@ -67,8 +91,6 @@ let needsDraw = true;
 let running = false;
 let builtFor = '';
 
-const crowd = new VillagerCrowd();
-
 export const getMode = () => mode;
 
 export function mountTown(el: HTMLElement, opts: TownViewOptions) {
@@ -76,13 +98,13 @@ export function mountTown(el: HTMLElement, opts: TownViewOptions) {
   options = opts;
   root.innerHTML = `
     <div class="sky" aria-hidden="true"><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div><div class="cloud c4"></div></div>
-    <canvas class="town-canvas" aria-label="Your town"></canvas>
+    <canvas class="town-canvas" aria-label="${t('Your town')}"></canvas>
     <div class="popover" hidden></div>
     <div class="place-hint" hidden></div>
     <div class="map-tools">
-      <button class="round-btn" data-zoom="in" title="Zoom in">＋</button>
-      <button class="round-btn" data-zoom="out" title="Zoom out">－</button>
-      <button class="round-btn" data-zoom="fit" title="Center the town">⌖</button>
+      <button class="round-btn" data-zoom="in" title="${t('Zoom in')}">＋</button>
+      <button class="round-btn" data-zoom="out" title="${t('Zoom out')}">－</button>
+      <button class="round-btn" data-zoom="fit" title="${t('Center the town')}">⌖</button>
     </div>`;
   canvas = root.querySelector('canvas')!;
   popover = root.querySelector('.popover')!;
@@ -106,10 +128,10 @@ export function mountTown(el: HTMLElement, opts: TownViewOptions) {
   renderTown();
   start();
   setInterval(earnIncome, INCOME_INTERVAL_MS);
+  setInterval(growOnce, GROWTH_INTERVAL_MS);
   scheduleBubble();
 }
 
-/** Starts the draw loop. The loop stops itself while the map is hidden. */
 export function start() {
   if (running || document.hidden) return;
   running = true;
@@ -131,9 +153,9 @@ export function fit() {
   const h = root.clientHeight || innerHeight;
   const centre = iso((n - 1) / 2, (n - 1) / 2);
   const cam = renderer.camera;
-  cam.scale = Math.max(0.4, Math.min(1.5, Math.min(w / (n * TILE_W + 40), (h - 40) / (n * TILE_H + 110))));
+  cam.scale = Math.max(MIN_ZOOM, Math.min(1.5, Math.min(w / (n * TILE_W + 40), (h - 40) / (n * TILE_H + 160))));
   cam.x = w / 2 - centre.x * cam.scale;
-  cam.y = h / 2 - (centre.y - 30) * cam.scale;
+  cam.y = h / 2 - (centre.y - 50) * cam.scale;
   cameraMoved();
 }
 
@@ -161,39 +183,24 @@ function bindZoomButtons() {
   );
 }
 
-// Placing things
-
-export function setMode(next: PlaceMode) {
-  mode = next;
-  selected = null;
-  popover.hidden = true;
-  root.classList.toggle('placing', next.type !== 'idle');
-  updateHint();
-  options.onModeChange();
-  renderTown();
-}
-
-function updateHint() {
-  if (mode.type === 'idle') {
-    hint.hidden = true;
-    return;
-  }
-  const what =
-    mode.type === 'house'
-      ? `${houseDef(mode.kind).emoji} ${houseDef(mode.kind).name}`
-      : mode.type === 'decor'
-        ? `${decorDef(mode.kind).emoji} ${decorDef(mode.kind).name}`
-        : 'it';
-  const more = mode.type === 'decor' ? ' (click again to place more!)' : '';
-  hint.hidden = false;
-  hint.innerHTML = `Click on your land to place <b>${what}</b>${more} <button class="btn small ghost" data-cancel>Done</button>`;
-  hint.querySelector('[data-cancel]')!.addEventListener('click', () => setMode({ type: 'idle' }));
-}
+// Finding things
 
 const findHouse = (id: string | null) => state.town.houses.find((h) => h.id === id);
+const findCity = (id: string | null) => state.town.city.find((c) => c.id === id);
 const findDecor = (id: string | null) => state.town.decor.find((d) => d.id === id);
+const findAny = (id: string | null) => findHouse(id) ?? findCity(id) ?? findDecor(id);
+
 const occupantAt = (gx: number, gy: number) =>
-  state.town.houses.find((h) => h.x === gx && h.y === gy) ?? state.town.decor.find((d) => d.x === gx && d.y === gy);
+  [...state.town.houses, ...state.town.city, ...state.town.decor].find((o) => o.x === gx && o.y === gy);
+
+function targetOf(id: string | null): PopoverTarget | null {
+  const house = findHouse(id);
+  if (house) return { type: 'house', item: house };
+  const city = findCity(id);
+  if (city) return { type: 'city', item: city };
+  const decor = findDecor(id);
+  return decor ? { type: 'decor', item: decor } : null;
+}
 
 function inLand(gx: number, gy: number) {
   const n = landSize(level());
@@ -213,27 +220,76 @@ const uniqueName = (base: string) => {
   return name;
 };
 
-function place(gx: number, gy: number, at: { x: number; y: number }) {
+// Placing things
+
+export function setMode(next: PlaceMode) {
+  mode = next;
+  selected = null;
+  popover.hidden = true;
+  root.classList.toggle('placing', next.type !== 'idle');
+  updateHint();
+  options.onModeChange();
+  renderTown();
+}
+
+/** Custom buildings are designed first, then placed. */
+export async function startCustom(type: 'house' | 'city') {
+  const kind = 'custom';
+  const look = type === 'house' ? houseLook(kind) : cityLook(kind);
+  const result = await openBuildingDesigner({
+    title: t('Design your building'),
+    look,
+    name: t(type === 'house' ? houseDef(kind).name : cityDef(kind).name),
+    houseKind: type === 'house' ? kind : undefined,
+    floors: 1,
+  });
+  if (result) setMode({ type, kind, look: result.look, name: result.name });
+}
+
+function modeLabel(): string {
+  if (mode.type === 'house') return `${mode.look?.emoji ?? houseDef(mode.kind).emoji} ${mode.name ?? t(houseDef(mode.kind).name)}`;
+  if (mode.type === 'city') return `${mode.look?.emoji ?? cityDef(mode.kind).emoji} ${mode.name ?? t(cityDef(mode.kind).name)}`;
+  if (mode.type === 'decor') return `${decorDef(mode.kind).emoji} ${t(decorDef(mode.kind).name)}`;
+  return t('it');
+}
+
+function updateHint() {
+  if (mode.type === 'idle') {
+    hint.hidden = true;
+    return;
+  }
+  const repeat = mode.type === 'decor' || mode.type === 'city' ? ` ${t('(click again to place more!)')}` : '';
+  hint.hidden = false;
+  hint.innerHTML = `${t('Click on your land to place {what}', { what: `<b>${modeLabel()}</b>` })}${repeat} <button class="btn small ghost" data-cancel>${t('Done')}</button>`;
+  hint.querySelector('[data-cancel]')!.addEventListener('click', () => setMode({ type: 'idle' }));
+}
+
+function place(gx: number, gy: number, at: Point) {
   if (!canPlace(gx, gy)) {
     sfx('error');
-    if (!inLand(gx, gy)) events.emit('toast', { text: '🔒 That land is locked. Level up to make your land bigger!', kind: 'bad' });
+    if (!inLand(gx, gy)) events.emit('toast', { text: t('🔒 That land is locked. Level up to make your land bigger!'), kind: 'bad' });
     return;
   }
   checkpoint();
-  if (mode.type === 'house') placeHouse(mode.kind, gx, gy, at);
+  if (mode.type === 'house') placeHouse(mode.kind, gx, gy, at, mode.look, mode.name);
+  else if (mode.type === 'city') placeCity(mode.kind, gx, gy, at, mode.look, mode.name);
   else if (mode.type === 'decor') placeDecor(mode.kind, gx, gy, at);
   else if (mode.type === 'move') moveObject(mode.id, gx, gy);
 }
 
-function placeHouse(kind: HouseKind, gx: number, gy: number, at: { x: number; y: number }) {
-  const def = houseDef(kind);
-  if (!spend(def.cost)) return;
-  const house = makeHouse(kind, gx, gy, uniqueName(def.name));
-  state.town.houses.push(house);
-  scene.bornAt.set(house.id, performance.now());
+function celebrateBuild(gx: number, gy: number, at: Point) {
   dust(gx, gy, 18, '#f5f0e6');
   sfx('build');
   events.emit('confetti', { x: at.x, y: at.y - 40 });
+}
+
+function placeHouse(kind: HouseKind, gx: number, gy: number, at: Point, look?: BuildingLook, name?: string) {
+  const def = houseDef(kind);
+  if (!spend(def.cost)) return;
+  const house = { ...makeHouse(kind, gx, gy, uniqueName(name ?? t(def.name))), look };
+  state.town.houses.push(house);
+  scene.bornAt.set(house.id, performance.now());
+  celebrateBuild(gx, gy, at);
   bump('housesBuilt');
   reward(30, 0, { x: at.x, y: at.y - 60 });
   setMode({ type: 'idle' });
@@ -241,10 +297,21 @@ function placeHouse(kind: HouseKind, gx: number, gy: number, at: { x: number; y:
   commit();
   renderTown();
   openPopover();
-  events.emit('toast', { text: `🎉 ${house.name} built! Your website now has a new page.`, kind: 'good' });
+  events.emit('toast', { text: t('🎉 {name} built! Your website now has a new page.', { name: house.name }), kind: 'good' });
 }
 
-function placeDecor(kind: DecorKind, gx: number, gy: number, at: { x: number; y: number }) {
+function placeCity(kind: CityKind, gx: number, gy: number, at: Point, look?: BuildingLook, name?: string) {
+  if (!spend(cityDef(kind).cost)) return;
+  const building: CityBuilding = { id: uid(), kind, x: gx, y: gy, floors: 1, builtAt: Date.now(), look, name };
+  state.town.city.push(building);
+  scene.bornAt.set(building.id, performance.now());
+  celebrateBuild(gx, gy, at);
+  bump('cityBuilt');
+  reward(8, 0, { x: at.x, y: at.y - 60 });
+  commit();
+}
+
+function placeDecor(kind: DecorKind, gx: number, gy: number, at: Point) {
   if (!spend(decorDef(kind).cost)) return;
   const decor = { id: uid(), kind, x: gx, y: gy };
   state.town.decor.push(decor);
@@ -257,7 +324,7 @@ function placeDecor(kind: DecorKind, gx: number, gy: number, at: { x: number; y:
 }
 
 function moveObject(id: string, gx: number, gy: number) {
-  const target = findHouse(id) ?? findDecor(id);
+  const target = findAny(id);
   if (target) {
     target.x = gx;
     target.y = gy;
@@ -293,29 +360,16 @@ function dust(gx: number, gy: number, count: number, color = '#fff') {
 function floatAt(gx: number, gy: number, height: number, text: string, color = '#ffb800') {
   const c = iso(gx, gy);
   scene.floats.push({ x: c.x, y: c.y - height, text, color, born: performance.now() });
+  needsDraw = true;
 }
 
-// Scene (rebuilt only when the town or mode changed)
+// Scene (rebuilt only when the town or the mode changed)
 
-function houseObject(house: (typeof state.town.houses)[number], night: boolean): SceneObject {
-  const kind = house.kind;
-  const scale = houseScale(house.level);
-  return {
-    id: house.id,
-    key: `house:${kind}:${night ? 'night' : 'day'}`,
-    make: () => houseArt(kind, night),
-    gx: house.x,
-    gy: house.y,
-    scale,
-    anims: houseAnims(kind),
-    seed: house.x * 3 + house.y * 7,
-    label: house.name,
-    stars: house.level ?? 1,
-    top: houseTop(kind) * scale,
-  };
+function toObject(id: string, gx: number, gy: number, visual: ReturnType<typeof houseVisual>, label?: string, stars?: number): SceneObject {
+  return { id, gx, gy, ...visual, seed: gx * 3 + gy * 7, label, stars };
 }
 
-function decorObject(decor: (typeof state.town.decor)[number]): SceneObject {
+function decorObject(decor: Decor): SceneObject {
   const variant = (decor.x * 7 + decor.y * 13) % DECOR_VARIANTS;
   const kind = decor.kind;
   return {
@@ -345,41 +399,49 @@ export function renderTown() {
   root.classList.toggle('night', night);
 
   const playerLevel = level();
+  const eraIndex = ERAS.indexOf(currentEra());
   scene.theme = theme;
   scene.land = landSize(playerLevel);
   scene.nextLevel = playerLevel + 1;
+  scene.paved = eraIndex >= CITY_ERA_INDEX;
   const network = buildRoads(state.town, scene.land);
   scene.roads = network.roads;
   scene.roadKey = [...network.roads].sort().join(';');
 
   const moving = mode.type === 'move' ? mode.id : null;
   scene.objects = [
-    ...state.town.houses.filter((h) => h.id !== moving).map((h) => houseObject(h, night)),
+    ...state.town.houses.filter((h) => h.id !== moving).map((h) => toObject(h.id, h.x, h.y, houseVisual(h, night), h.name, h.level ?? 1)),
+    ...state.town.city.filter((c) => c.id !== moving).map((c) => toObject(c.id, c.x, c.y, cityVisual(c, night))),
     ...state.town.decor.filter((d) => d.id !== moving).map(decorObject),
   ].sort((a, b) => a.gx + a.gy - (b.gx + b.gy) || a.gx - b.gx);
 
   scene.bubbles = scene.bubbles.filter((b) => state.town.houses.some((h) => h.x === b.gx && h.y === b.gy));
-  crowd.update(network.paths, state.town.houses.length);
-  scene.villagers = crowd.views;
+  const population = cityPopulation();
+  people.update(network.paths, Math.min(MAX_PEOPLE, 3 + Math.round(population / 6)));
+  cars.update(network.paths, scene.paved ? Math.min(MAX_CARS, 2 + Math.round(population / 30)) : 0);
+  scene.villagers = [...people.views, ...cars.views];
   updateHover();
   placePopover();
 }
 
 function ghost(): (SpriteRef & { scale: number }) | null {
   const night = !!scene.theme.night;
-  const house = (kind: HouseKind, scale = 1) => ({
-    key: `house:${kind}:${night ? 'night' : 'day'}`,
-    make: () => houseArt(kind, night),
-    scale,
-  });
-  const decor = (kind: DecorKind) => ({ key: `decor:${kind}:0`, make: () => decorArt(kind, 0), scale: 1 });
-  if (mode.type === 'house') return house(mode.kind);
-  if (mode.type === 'decor') return decor(mode.kind);
+  if (mode.type === 'house') {
+    const preview = { id: '', kind: mode.kind, name: '', x: 0, y: 0, items: [], builtAt: 0, look: mode.look };
+    return houseVisual(preview, night);
+  }
+  if (mode.type === 'city') return cityVisual({ id: '', kind: mode.kind, x: 0, y: 0, floors: 1, builtAt: 0, look: mode.look }, night);
+  if (mode.type === 'decor') {
+    const kind = mode.kind;
+    return { key: `decor:${kind}:0`, make: () => decorArt(kind, 0), scale: 1 };
+  }
   if (mode.type === 'move') {
-    const h = findHouse(mode.id);
-    if (h) return house(h.kind, houseScale(h.level));
-    const d = findDecor(mode.id);
-    if (d) return decor(d.kind);
+    const house = findHouse(mode.id);
+    if (house) return houseVisual(house, night);
+    const city = findCity(mode.id);
+    if (city) return cityVisual(city, night);
+    const decor = findDecor(mode.id);
+    if (decor) return { key: `decor:${decor.kind}:0`, make: () => decorArt(decor.kind, 0), scale: 1 };
   }
   return null;
 }
@@ -398,7 +460,7 @@ function updateHover() {
 function bindInput() {
   let press: { x: number; y: number; camX: number; camY: number } | null = null;
   let dragging = false;
-  const pointers = new Map<number, { x: number; y: number }>();
+  const pointers = new Map<number, Point>();
   let pinchDistance = 0;
 
   const local = (e: PointerEvent | WheelEvent) => {
@@ -490,7 +552,7 @@ function bindInput() {
   );
 }
 
-function handleClick(e: PointerEvent, p: { x: number; y: number }) {
+function handleClick(e: PointerEvent, p: Point) {
   if (mode.type !== 'idle') {
     const world = renderer.toWorld(p.x, p.y);
     const tile = toGrid(world.x, world.y);
@@ -514,44 +576,70 @@ function handleClick(e: PointerEvent, p: { x: number; y: number }) {
   else popover.hidden = true;
 }
 
-// House / decoration menu
+// Building menu
 
 function openPopover() {
-  const target = findHouse(selected) ?? findDecor(selected);
+  const target = targetOf(selected);
   if (!target) return;
-  showPopover(popover, target, (action, event) => void onPopoverAction(action, event));
+  showPopover(popover, target, (action, event) => void onPopoverAction(target, action, event));
   placePopover();
 }
 
-async function onPopoverAction(action: PopoverAction, event: MouseEvent) {
-  const house = findHouse(selected);
-  const decor = findDecor(selected);
-  if (action === 'enter' && house) {
-    selected = null;
-    popover.hidden = true;
-    updateHover();
-    options.onEnterHouse(house.id);
-  } else if (action === 'upgrade' && house) {
-    upgrade(house, event);
-  } else if (action === 'rename' && house) {
-    const name = await promptModal('Rename house', 'The name also becomes the menu link on your website.', house.name, {
-      emoji: houseDef(house.kind).emoji,
-      max: 24,
-    });
-    if (name) {
+async function onPopoverAction(target: PopoverTarget, action: PopoverAction, event: MouseEvent) {
+  if (action === 'move') return setMode({ type: 'move', id: target.item.id });
+  if (action === 'remove') return remove(target);
+  if (action === 'design') return redesign(target);
+  if (target.type === 'house') {
+    const house = target.item;
+    if (action === 'enter') {
+      selected = null;
+      popover.hidden = true;
+      updateHover();
+      options.onEnterHouse(house.id);
+    } else if (action === 'upgrade') {
+      upgradeHouse(house, event);
+    } else if (action === 'rename') {
+      const name = await promptModal(t('Rename house'), t('The name also becomes the menu link on your website.'), house.name, {
+        emoji: house.look?.emoji ?? houseDef(house.kind).emoji,
+        max: 24,
+      });
+      if (!name) return;
       checkpoint();
       house.name = name;
       commit();
       openPopover();
     }
-  } else if (action === 'move') {
-    setMode({ type: 'move', id: (house ?? decor)!.id });
-  } else if (action === 'remove') {
-    await remove(house, decor);
+  } else if (target.type === 'city' && action === 'grow') {
+    addFloor(target.item, event);
   }
 }
 
-function upgrade(house: (typeof state.town.houses)[number], event: MouseEvent) {
+async function redesign(target: PopoverTarget) {
+  if (target.type === 'decor') return;
+  const isHouse = target.type === 'house';
+  const item = target.item;
+  const look = isHouse ? houseLook(item.kind as HouseKind, item.look) : cityLook(item.kind as CityKind, item.look);
+  const floors = isHouse ? ((item as House).level ?? 1) : (item as CityBuilding).floors;
+  const currentName = isHouse ? (item as House).name : ((item as CityBuilding).name ?? t(cityDef(item.kind as CityKind).name));
+  const result = await openBuildingDesigner({
+    title: t('Change the look'),
+    look: { ...look },
+    name: currentName,
+    houseKind: isHouse && floors < 3 ? (item.kind as HouseKind) : undefined,
+    floors: isHouse ? (floors < 3 ? 1 : floors * 2) : floors,
+  });
+  if (!result) return;
+  checkpoint();
+  item.look = result.look;
+  if (isHouse) (item as House).name = result.name;
+  else (item as CityBuilding).name = result.name;
+  bump('styled');
+  commit();
+  renderTown();
+  openPopover();
+}
+
+function upgradeHouse(house: House, event: MouseEvent) {
   const houseLevel = house.level ?? 1;
   if (!spend(upgradeCost(house.kind, houseLevel))) return;
   checkpoint();
@@ -561,9 +649,13 @@ function upgrade(house: (typeof state.town.houses)[number], event: MouseEvent) {
   sfx('levelup');
   bump('upgrades');
   events.emit('confetti', { x: event.clientX, y: event.clientY });
-  reward(25 + house.level * 10, 0, { x: event.clientX, y: event.clientY - 30 });
+  reward(20 + house.level * 10, 0, { x: event.clientX, y: event.clientY - 30 });
   events.emit('toast', {
-    text: `⬆️ ${house.name} is now ★${house.level}! Room for ${roomSlots(house.kind, house.level)} furniture, and more visitor coins.`,
+    text: t('⬆️ {name} is now ★{level}! Room for {slots} parts, and more visitors.', {
+      name: house.name,
+      level: house.level,
+      slots: roomSlots(house.kind, house.level),
+    }),
     kind: 'good',
   });
   commit();
@@ -571,24 +663,41 @@ function upgrade(house: (typeof state.town.houses)[number], event: MouseEvent) {
   openPopover();
 }
 
-async function remove(house?: (typeof state.town.houses)[number], decor?: (typeof state.town.decor)[number]) {
-  if (house) {
-    const refund = Math.floor(houseDef(house.kind).cost / 2);
+function addFloor(building: CityBuilding, event: MouseEvent) {
+  if (building.floors >= floorCap(building, currentEra())) return;
+  if (!spend(floorCost(building.floors))) return;
+  building.floors++;
+  scene.bornAt.set(building.id, performance.now());
+  dust(building.x, building.y, 14, '#ffe08a');
+  sfx('build');
+  bump('grown');
+  reward(5, 0, { x: event.clientX, y: event.clientY - 30 });
+  commit();
+  renderTown();
+  openPopover();
+}
+
+async function remove(target: PopoverTarget) {
+  const item = target.item;
+  if (target.type === 'house') {
+    const refund = Math.floor(houseDef(target.item.kind).cost / 2);
     const ok = await confirmModal(
-      `Remove ${house.name}?`,
-      `This page and everything inside it will disappear from your website. You get ${refund} 🪙 back.`,
-      'Remove',
+      t('Remove {name}?', { name: target.item.name }),
+      t('This page and everything inside it will disappear from your website. You get {coins} 🪙 back.', { coins: refund }),
+      t('Remove'),
       '🏚️',
     );
     if (!ok) return;
-    state.town.houses = state.town.houses.filter((h) => h.id !== house.id);
+    state.town.houses = state.town.houses.filter((h) => h.id !== item.id);
     state.progress.coins += refund;
-    dust(house.x, house.y, 20, '#cfcfcf');
-  } else if (decor) {
-    state.town.decor = state.town.decor.filter((d) => d.id !== decor.id);
-    state.progress.coins += Math.floor(decorDef(decor.kind).cost / 2);
-    dust(decor.x, decor.y, 10, '#cfcfcf');
+  } else if (target.type === 'city') {
+    state.town.city = state.town.city.filter((c) => c.id !== item.id);
+    state.progress.coins += Math.floor(cityDef(target.item.kind).cost / 2);
+  } else {
+    state.town.decor = state.town.decor.filter((d) => d.id !== item.id);
+    state.progress.coins += Math.floor(decorDef(target.item.kind).cost / 2);
   }
+  dust(item.x, item.y, 16, '#cfcfcf');
   sfx('delete');
   clearHistory();
   selected = null;
@@ -598,7 +707,7 @@ async function remove(house?: (typeof state.town.houses)[number], decor?: (typeo
 
 function placePopover() {
   if (!popover || popover.hidden || !selected) return;
-  const target = findHouse(selected) ?? findDecor(selected);
+  const target = findAny(selected);
   if (!target) {
     popover.hidden = true;
     return;
@@ -607,13 +716,13 @@ function placePopover() {
   const cam = renderer.camera;
   const x = cam.x + c.x * cam.scale;
   const y = cam.y + (c.y + TILE_H / 2 + 18) * cam.scale;
-  const width = popover.offsetWidth || 270;
+  const width = popover.offsetWidth || 280;
   const left = Math.round(Math.max(8, Math.min(root.clientWidth - width - 8, x - width / 2)));
   const top = Math.round(Math.max(8, Math.min(root.clientHeight - popover.offsetHeight - 8, y)));
   popover.style.translate = `${left}px ${top}px`;
 }
 
-// Treasure bubbles and income
+// Treasure, income and growth
 
 function scheduleBubble() {
   setTimeout(
@@ -626,11 +735,11 @@ function scheduleBubble() {
       sfx('pop');
       needsDraw = true;
     },
-    22_000 + Math.random() * 20_000,
+    20_000 + Math.random() * 18_000,
   );
 }
 
-function collectBubble(id: string, at: { x: number; y: number }) {
+function collectBubble(id: string, at: Point) {
   const bubble = scene.bubbles.find((b) => b.id === id);
   if (!bubble) return;
   scene.bubbles = scene.bubbles.filter((b) => b.id !== id);
@@ -653,9 +762,22 @@ function earnIncome() {
   earnPassive(coins);
   const hall = state.town.houses.find((h) => h.kind === 'townhall');
   if (hall) floatAt(hall.x, hall.y, 90, `+${coins} 🪙`);
-  needsDraw = true;
   commit({ render: false });
   options.onCoins();
+}
+
+/** The town grows by itself: a building somewhere gets a new floor. */
+function growOnce() {
+  if (document.hidden) return;
+  const grown = growCity(1);
+  if (!grown.length) return;
+  for (const building of grown) {
+    scene.bornAt.set(building.id, performance.now());
+    dust(building.x, building.y, 10, '#ffffff');
+    floatAt(building.x, building.y, cityVisual(building, false).top + 10, t('⬆ new floor'), '#2fbf71');
+  }
+  sfx('pop');
+  commit();
 }
 
 // Draw loop
@@ -670,7 +792,8 @@ function frame(now: number) {
   if (!root.clientWidth) return;
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  crowd.step(dt);
+  people.step(dt);
+  cars.step(dt);
 
   const idle = now - lastInput > IDLE_AFTER_MS && !isAnimating(scene);
   skipFrame = idle && !needsDraw && !skipFrame;

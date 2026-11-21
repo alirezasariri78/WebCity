@@ -5,6 +5,8 @@ export interface GameEvents {
   levelup: { level: number };
   achievement: { id: string };
   quest: { done: boolean };
+  era: { era: string };
+  grew: { id: string };
 }
 
 type Handler<T> = (payload: T) => void;

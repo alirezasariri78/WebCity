@@ -22,12 +22,14 @@ function themeVars(theme: ThemeDef): string {
 }
 
 /** The full stylesheet: theme colours, site-wide design overrides, then the shared base styles. */
-export function siteCSS(theme: ThemeDef, town?: Town): string {
+const PERSIAN_FONTS = "--font:'Vazirmatn',Tahoma,system-ui,sans-serif;--heading:'Vazirmatn',Tahoma,system-ui,sans-serif";
+
+export function siteCSS(theme: ThemeDef, town?: Town, options: { persian?: boolean; extra?: string } = {}): string {
   const site = town?.style;
-  const rootVars = [themeVars(theme), styleVars(site)].filter(Boolean).join(';');
+  const rootVars = [themeVars(theme), options.persian ? PERSIAN_FONTS : '', styleVars(site)].filter(Boolean).join(';');
   const background = backgroundCSS({ bg: site?.bg, bg2: site?.bg2 }, resolveImage);
   const custom = customCss(site);
-  return [`:root{${rootVars}}`, baseCss, background ? `body{${background}}` : '', custom ? `body{${custom}}` : '']
+  return [`:root{${rootVars}}`, baseCss, background ? `body{${background}}` : '', custom ? `body{${custom}}` : '', options.extra ?? '']
     .filter(Boolean)
     .join('\n');
 }

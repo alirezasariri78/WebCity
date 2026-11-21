@@ -1,5 +1,5 @@
 import type { Tile } from '../../core/rules';
-import { VILLAGER_VARIANTS, villagerArt } from '../../render/art';
+import type { Art } from '../../render/art';
 import type { Villager } from '../../render/scene';
 
 interface Walker {
@@ -11,26 +11,39 @@ interface Walker {
   wait: number;
 }
 
-const MAX_VILLAGERS = 18;
+export interface CrowdKind {
+  keyPrefix: string;
+  variants: number;
+  art: (variant: number) => Art;
+  /** Tiles per second. */
+  speed: [min: number, max: number];
+  /** Seconds to rest at each end of a trip. */
+  rest: [min: number, max: number];
+  bob: boolean;
+}
+
 const FADE_PER_SECOND = 4;
 
 const samePath = (a: Tile[], b: Tile[]) => a.length === b.length && a.every((p, i) => p.gx === b[i].gx && p.gy === b[i].gy);
 const randomOf = <T>(list: T[]): T | undefined => list[Math.floor(Math.random() * list.length)];
+const between = ([min, max]: [number, number]) => min + Math.random() * (max - min);
 
-/** Little people walking up and down the roads between houses. */
-export class VillagerCrowd {
+/** Things that travel the roads: people walking, or cars driving. */
+export class Crowd {
   private walkers: Walker[] = [];
   private paths: Tile[][] = [];
+
+  constructor(private readonly kind: CrowdKind) {}
 
   get views(): Villager[] {
     return this.walkers.map((w) => w.view);
   }
 
-  update(paths: Tile[][], houseCount: number) {
+  update(paths: Tile[][], wanted: number) {
     this.paths = paths;
-    const wanted = paths.length ? Math.min(MAX_VILLAGERS, 2 + Math.round(houseCount * 1.5)) : 0;
-    this.walkers.length = Math.min(this.walkers.length, wanted);
-    while (this.walkers.length < wanted) this.walkers.push(this.spawn(this.walkers.length));
+    const count = paths.length ? wanted : 0;
+    this.walkers.length = Math.min(this.walkers.length, count);
+    while (this.walkers.length < count) this.walkers.push(this.spawn(this.walkers.length));
 
     for (const w of this.walkers) {
       const same = paths.find((p) => samePath(p, w.path));
@@ -43,23 +56,24 @@ export class VillagerCrowd {
   }
 
   private spawn(index: number): Walker {
-    const variant = index % VILLAGER_VARIANTS;
+    const variant = index % this.kind.variants;
     return {
       view: {
-        key: `villager:${variant}`,
-        make: () => villagerArt(variant),
+        key: `${this.kind.keyPrefix}:${variant}`,
+        make: () => this.kind.art(variant),
         gx: 0,
         gy: 0,
         flip: false,
         moving: false,
         alpha: 0,
         seed: index * 1.3,
+        bob: this.kind.bob,
       },
       path: [],
       t: 0,
-      speed: 0.6 + Math.random() * 0.6,
+      speed: between(this.kind.speed),
       direction: 1,
-      wait: Math.random() * 3,
+      wait: between(this.kind.rest),
     };
   }
 
@@ -84,7 +98,7 @@ export class VillagerCrowd {
     w.t += w.direction * w.speed * dt;
     if (w.t >= last || w.t <= 0) {
       w.t = Math.max(0, Math.min(last, w.t));
-      w.wait = 1 + Math.random() * 3;
+      w.wait = between(this.kind.rest);
       if (w.t <= 0) {
         w.path = randomOf(this.paths) ?? w.path;
         w.direction = 1;

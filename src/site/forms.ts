@@ -4,12 +4,13 @@ import { esc, splitList } from './text';
 export interface FormOptions {
   fields: FormField[];
   submitLabel: string;
+  chooseLabel?: string;
   action: string;
   sendsEmail: boolean;
   idPrefix: string;
 }
 
-function renderField(field: FormField, id: string): string {
+function renderField(field: FormField, id: string, chooseLabel: string): string {
   const name = esc(field.label || id);
   const required = field.required ? ' required' : '';
   const star = field.required ? ' <i class="req" aria-hidden="true">*</i>' : '';
@@ -24,7 +25,7 @@ function renderField(field: FormField, id: string): string {
       return `<div class="${cls}"><label for="${id}">${label}</label><textarea id="${id}" name="${name}" rows="5"${placeholder}${required}></textarea>${help}</div>`;
     case 'select': {
       const options = choices.map((c) => `<option>${esc(c)}</option>`).join('');
-      return `<div class="${cls}"><label for="${id}">${label}</label><select id="${id}" name="${name}"${required}><option value="">${esc(field.placeholder || 'Choose…')}</option>${options}</select>${help}</div>`;
+      return `<div class="${cls}"><label for="${id}">${label}</label><select id="${id}" name="${name}"${required}><option value="">${esc(field.placeholder || chooseLabel)}</option>${options}</select>${help}</div>`;
     }
     case 'radio': {
       const radios = choices
@@ -42,8 +43,8 @@ function renderField(field: FormField, id: string): string {
   }
 }
 
-export function renderForm({ fields, submitLabel, action, sendsEmail, idPrefix }: FormOptions): string {
-  const inputs = fields.map((field, i) => renderField(field, `${idPrefix}-${i}`)).join('');
+export function renderForm({ fields, submitLabel, chooseLabel = 'Choose…', action, sendsEmail, idPrefix }: FormOptions): string {
+  const inputs = fields.map((field, i) => renderField(field, `${idPrefix}-${i}`, chooseLabel)).join('');
   const encoding = sendsEmail ? ' enctype="text/plain"' : '';
   return `<form action="${esc(action)}" method="post"${encoding}><div class="fgrid">${inputs}</div><button class="btn btn-primary btn-md" type="submit">${esc(submitLabel || 'Send')}</button></form>`;
 }

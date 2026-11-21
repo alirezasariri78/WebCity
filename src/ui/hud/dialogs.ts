@@ -1,11 +1,13 @@
-import { unlocksAt } from '../../core/rules';
+import { ERAS, SITE_FEATURES, unlocksAt, type EraId } from '../../core/rules';
+import type { Lang } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { newGame } from '../../game/factory';
 import { checkpoint } from '../../game/history';
 import { parseSave } from '../../game/persistence';
 import { ACHIEVEMENTS, type AwayEarnings, type DailyGift } from '../../game/progress';
-import { commit, replaceState, state } from '../../game/store';
+import { commit, replaceState, saveNow, state } from '../../game/store';
+import { LANGUAGES, num, setLang, t } from '../../i18n';
 import { esc } from '../../site';
 import { pickFile } from '../common/download';
 import { confirmModal, openModal } from '../common/modal';
@@ -34,14 +36,57 @@ export const LOGOS = [
   '🎮',
 ];
 
+/** Saves the choice and reloads, so every screen is rebuilt in the new language. */
+export function setLanguage(lang: Lang) {
+  state.settings.lang = lang;
+  saveNow();
+  location.reload();
+}
+
+/** First visit: rebuild the starter town so its names and texts are in the chosen language. */
+function startInLanguage(lang: Lang) {
+  setLang(lang);
+  const fresh = newGame();
+  fresh.settings = { ...fresh.settings, lang, welcomed: true };
+  replaceState(fresh);
+  location.reload();
+}
+
+export function chooseLanguage(onChosen: () => void) {
+  const buttons = LANGUAGES.map(
+    (l) =>
+      `<button class="btn big lang-choice" data-lang="${l.id}" dir="${l.dir}"><span class="lang-mark">${l.id === 'fa' ? 'فا' : 'En'}</span>${l.name}</button>`,
+  ).join('');
+  const modal = openModal(
+    `<div class="modal-icon">🌐</div><h2>Choose your language</h2><h2 dir="rtl">زبان را انتخاب کنید</h2><div class="lang-choices">${buttons}</div>`,
+    {
+      cls: 'center',
+      dismissable: false,
+    },
+  );
+  modal.el.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const lang = b.dataset.lang as Lang;
+      state.settings.welcomed = true;
+      if (lang !== state.settings.lang) return startInLanguage(lang);
+      saveNow();
+      modal.close();
+      onChosen();
+    }),
+  );
+}
+
 export function renameTown() {
   sfx('click');
   let logo = state.town.logo;
+  const logos = LOGOS.map((l) => `<button type="button" class="logo-pick${l === logo ? ' on' : ''}" data-logo="${l}">${l}</button>`).join(
+    '',
+  );
   const modal =
-    openModal(`<div class="modal-icon">🏷️</div><h2>Name your town</h2><p class="muted">This is also the name of your website.</p>
-    <form class="prompt-form"><label class="field"><span>Town name</span><input class="input" maxlength="32" value="${esc(state.town.name)}"></label>
-    <div class="field"><span>Logo</span><div class="logo-grid">${LOGOS.map((l) => `<button type="button" class="logo-pick${l === logo ? ' on' : ''}" data-logo="${l}">${l}</button>`).join('')}</div></div>
-    <div class="row end"><button class="btn primary">Save ✓</button></div></form>`);
+    openModal(`<div class="modal-icon">🏷️</div><h2>${t('Name your town')}</h2><p class="muted">${t('This is also the name of your website.')}</p>
+    <form class="prompt-form"><label class="field"><span>${t('Town name')}</span><input class="input" maxlength="32" value="${esc(state.town.name)}"></label>
+    <div class="field"><span>${t('Logo')}</span><div class="logo-grid">${logos}</div></div>
+    <div class="row end"><button class="btn primary">${t('Save ✓')}</button></div></form>`);
   const input = modal.el.querySelector('input')!;
   setTimeout(() => input.select(), 50);
   modal.el.querySelectorAll<HTMLButtonElement>('[data-logo]').forEach((b) =>
@@ -64,19 +109,37 @@ export function renameTown() {
   });
 }
 
+const unlockList = (items: string[]) =>
+  items.length
+    ? `<div class="unlocks"><b>${t('New things unlocked:')}</b>${items.map((u) => `<div class="unlock">${esc(u)}</div>`).join('')}</div>`
+    : '';
+
 export function showLevelUp(level: number) {
   sfx('levelup');
   events.emit('confetti', { big: true });
-  const unlocks = unlocksAt(level);
-  const list = unlocks.length
-    ? `<div class="unlocks"><b>New things unlocked:</b>${unlocks.map((u) => `<div class="unlock">${esc(u)}</div>`).join('')}</div>`
-    : '';
   const modal = openModal(
-    `<div class="levelup"><div class="burst"></div><div class="lv-num">${level}</div><h2>Level up!</h2><p class="muted">You are now a level ${level} Mayor.</p>${list}<button class="btn primary big" data-ok>Awesome! 🎉</button></div>`,
+    `<div class="levelup"><div class="burst"></div><div class="lv-num">${num(level)}</div><h2>${t('Level up!')}</h2><p class="muted">${t('You are now a level {level} Mayor.', { level })}</p>${unlockList(unlocksAt(level).map((u) => `${u.emoji} ${t(u.name)}${u.detail ? ` (${t(u.detail)})` : ''}`))}<button class="btn primary big" data-ok>${t('Awesome! 🎉')}</button></div>`,
     { cls: 'center' },
   );
   modal.el.querySelector('[data-ok]')!.addEventListener('click', () => modal.close());
   commit();
+}
+
+export function showNewEra(id: EraId) {
+  const era = ERAS.find((e) => e.id === id)!;
+  sfx('levelup');
+  events.emit('confetti', { big: true });
+  const features = SITE_FEATURES.filter((f) => f.era === id).map((f) => `${f.emoji} ${t(f.name)}`);
+  const perks = [
+    t('🏢 Buildings can now grow up to {floors} floors', { floors: era.maxFloors }),
+    t('⬆️ Page buildings can be upgraded to ★{level}', { level: era.maxPageLevel }),
+    ...features,
+  ];
+  const modal = openModal(
+    `<div class="levelup"><div class="burst"></div><div class="lv-num era">${era.emoji}</div><h2>${t('Your town is now a {era}!', { era: t(era.name) })}</h2><p class="muted">${t('More people moved in, and the town keeps growing.')}</p>${unlockList(perks)}<button class="btn primary big" data-ok>${t('Hooray! 🎉')}</button></div>`,
+    { cls: 'center' },
+  );
+  modal.el.querySelector('[data-ok]')!.addEventListener('click', () => modal.close());
 }
 
 export function openBadges() {
@@ -85,15 +148,16 @@ export function openBadges() {
   const s = state.progress.stats;
   const badges = ACHIEVEMENTS.map((a) => {
     const got = earned.includes(a.id);
-    return `<div class="badge${got ? ' got' : ''}"><div class="b-emoji">${got ? a.emoji : '❔'}</div><b>${a.name}</b><small>${a.desc}</small><span class="cost">${got ? '✓ Earned' : `+${a.coins} 🪙`}</span></div>`;
+    return `<div class="badge${got ? ' got' : ''}"><div class="b-emoji">${got ? a.emoji : '❔'}</div><b>${t(a.name)}</b><small>${t(a.desc)}</small><span class="cost">${got ? t('✓ Earned') : `+${num(a.coins)} 🪙`}</span></div>`;
   }).join('');
-  const stat = (value: string | number, label: string) => `<div><b>${value}</b><small>${label}</small></div>`;
-  openModal(`<h2>🏆 Your badges <span class="muted small">${earned.length} / ${ACHIEVEMENTS.length}</span></h2>
+  const stat = (value: string | number, label: string) =>
+    `<div><b>${typeof value === 'number' ? num(value) : value}</b><small>${t(label)}</small></div>`;
+  openModal(`<h2>🏆 ${t('Your badges')} <span class="muted small">${num(earned.length)} / ${num(ACHIEVEMENTS.length)}</span></h2>
     <div class="badges">${badges}</div>
-    <h3>📊 Your stats</h3>
+    <h3>📊 ${t('Your stats')}</h3>
     <div class="stats-grid">
-      ${stat(s.housesBuilt, 'houses built')}${stat(s.furnitureAdded, 'furniture added')}${stat(s.decorPlaced, 'nature placed')}
-      ${stat(s.coinsEarned, 'coins earned')}${stat(`${state.progress.streak}🔥`, 'day streak')}${stat(s.exports, 'websites downloaded')}
+      ${stat(s.housesBuilt, 'pages built')}${stat(s.cityBuilt, 'city buildings')}${stat(s.grown, 'floors grown')}
+      ${stat(s.coinsEarned, 'coins earned')}${stat(`${num(state.progress.streak)}🔥`, 'day streak')}${stat(s.exports, 'websites downloaded')}
     </div>`);
 }
 
@@ -102,7 +166,7 @@ async function openProjectFile() {
   if (!file) return;
   const data = parseSave(await file.text());
   if (!data) {
-    events.emit('toast', { text: 'That file is not a Town Builder project.', kind: 'bad' });
+    events.emit('toast', { text: t('That file is not a Town Builder project.'), kind: 'bad' });
     return;
   }
   replaceState(data);
@@ -111,32 +175,32 @@ async function openProjectFile() {
 
 async function startOver() {
   const ok = await confirmModal(
-    'Start over?',
-    'Your current town will be deleted. Save a project file first if you want to keep it!',
-    'Delete & start over',
+    t('Start over?'),
+    t('Your current town will be deleted. Save a project file first if you want to keep it!'),
+    t('Delete & start over'),
     '🔄',
   );
   if (!ok) return;
   const fresh = newGame();
-  fresh.settings.welcomed = true;
+  fresh.settings = { ...state.settings, tourDone: false };
   replaceState(fresh);
   location.reload();
 }
 
-const soundLabel = () => (state.settings.muted ? '🔇 Sound is off' : '🔊 Sound is on');
+const soundLabel = () => (state.settings.muted ? t('🔇 Sound is off') : t('🔊 Sound is on'));
 
-export function openMenu() {
+export function openMenu(startTour: () => void) {
   sfx('click');
-  const modal = openModal(`<h2>⚙️ Menu</h2>
+  const modal = openModal(`<h2>⚙️ ${t('Menu')}</h2>
     <div class="menu-list">
-      <button class="btn block" data-action="export">⬇️ Download my website</button>
-      <button class="btn block" data-action="save">💾 Save project file <small class="muted">(to edit later on any computer)</small></button>
-      <button class="btn block" data-action="open">📂 Open project file</button>
+      <button class="btn block" data-action="export">⬇️ ${t('Download my website')}</button>
+      <button class="btn block" data-action="save">💾 ${t('Save project file')} <small class="muted">${t('(to edit later on any computer)')}</small></button>
+      <button class="btn block" data-action="open">📂 ${t('Open project file')}</button>
       <button class="btn block" data-action="sound">${soundLabel()}</button>
-      <button class="btn block" data-action="help">❓ How to play</button>
-      <button class="btn block danger-soft" data-action="reset">🔄 Start a brand new town</button>
+      <button class="btn block" data-action="tour">🧭 ${t('Show the tour again')}</button>
+      <button class="btn block danger-soft" data-action="reset">🔄 ${t('Start a brand new town')}</button>
     </div>
-    <p class="muted small">Your town saves automatically in this browser.</p>`);
+    <p class="muted small">${t('Your town saves automatically in this browser.')}</p>`);
 
   const actions: Record<string, (button: HTMLButtonElement) => void> = {
     export: () => exportWebsite(),
@@ -148,7 +212,7 @@ export function openMenu() {
       commit({ render: false });
       sfx('click');
     },
-    help: () => showWelcome(),
+    tour: startTour,
     reset: () => void startOver(),
   };
   modal.el.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) =>
@@ -160,45 +224,25 @@ export function openMenu() {
   );
 }
 
-export function showWelcome(onDone?: () => void) {
-  const step = (emoji: string, title: string, text: string) => `<div><span>${emoji}</span><b>${title}</b><small>${text}</small></div>`;
-  const modal = openModal(
-    `<div class="welcome"><div class="w-hero">🏘️</div><h2>Welcome, Mayor!</h2>
-    <p class="muted">In this game you build a town, and your town <b>becomes a real website</b>.</p>
-    <div class="w-steps">
-      ${step('🏠', 'Houses are pages', 'Build a house → your website gets a new page.')}
-      ${step('🛋️', 'Furniture is content', 'Go inside, add furniture → titles, text, pictures, forms, buttons.')}
-      ${step('🎨', 'Style everything', 'Colours, fonts, corners, spacing… for one part, one page, or the whole site.')}
-      ${step('🔮', 'Magic Window', 'See your real website at any time, then download it!')}
-    </div>
-    <p class="muted small">Finish quests ⭐ to earn coins and XP, level up to unlock new things, and come back every day for gifts.</p>
-    <button class="btn primary big" data-go>Let's build! 🚀</button></div>`,
-    { cls: 'center', onClose: onDone },
-  );
-  modal.el.querySelector('[data-go]')!.addEventListener('click', () => {
-    sfx('fanfare');
-    modal.close();
-  });
-}
-
 export function showDailyGift(daily: DailyGift | null, away: AwayEarnings | null) {
-  if (!daily && !(away && away.coins > 0)) return;
+  const hasAway = !!away && (away.coins > 0 || away.newFloors > 0);
+  if (!daily && !hasAway) return;
   const today = daily ? ((daily.streak - 1) % 7) + 1 : 0;
   const days = Array.from({ length: 7 }, (_, i) => {
     const day = i + 1;
     const cls = day < today ? ' past' : day === today ? ' today' : '';
-    return `<div class="day${cls}"><small>Day ${day}</small><span>${day === 7 ? '🎁' : '🪙'}</span><b>${20 + 10 * day}</b></div>`;
+    return `<div class="day${cls}"><small>${t('Day {n}', { n: day })}</small><span>${day === 7 ? '🎁' : '🪙'}</span><b>${num(20 + 10 * day)}</b></div>`;
   }).join('');
   const streak = daily
-    ? `<div class="modal-icon">🔥</div><h2>Day ${daily.streak} streak!</h2><p class="muted">Come back every day for bigger gifts.</p><div class="days">${days}</div><div class="gift">+${daily.coins} 🪙</div>`
+    ? `<div class="modal-icon">🔥</div><h2>${t('Day {n} streak!', { n: daily.streak })}</h2><p class="muted">${t('Come back every day for bigger gifts.')}</p><div class="days">${days}</div><div class="gift">+${num(daily.coins)} 🪙</div>`
     : '';
-  const awayText =
-    away && away.coins > 0
-      ? `<div class="away">While you were away, <b>${away.visitors}</b> people visited your website and left <b>${away.coins} 🪙</b>!</div>`
-      : '';
-  const modal = openModal(`<div class="daily">${streak}${awayText}<button class="btn primary big" data-ok>Collect! ✨</button></div>`, {
-    cls: 'center',
-  });
+  const awayText = hasAway
+    ? `<div class="away">${t('While you were away, {visitors} people visited your website and left {coins} 🪙.', { visitors: away.visitors, coins: away.coins })}${away.newFloors ? `<br>${t('🏗️ Your town grew {floors} new floors!', { floors: away.newFloors })}` : ''}</div>`
+    : '';
+  const modal = openModal(
+    `<div class="daily">${streak}${awayText}<button class="btn primary big" data-ok>${t('Collect! ✨')}</button></div>`,
+    { cls: 'center' },
+  );
   modal.el.querySelector('[data-ok]')!.addEventListener('click', (e) => {
     sfx('coin');
     events.emit('confetti', { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY });

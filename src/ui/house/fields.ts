@@ -3,6 +3,7 @@ import type { Furniture } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { state } from '../../game/store';
+import { t } from '../../i18n';
 import { esc, orderedHouses, parseJSON } from '../../site';
 import { shrinkImage } from '../common/download';
 import { bindFormBuilder, formBuilderHTML } from './formBuilder';
@@ -20,10 +21,10 @@ export function linkPicker(value: string, attrs: string): string {
     .join('');
   return `<div class="linkpick" ${attrs}>
     <select class="input" data-link-choice>
-      <option value="">— Nowhere yet —</option>${pages}
-      <option value="custom"${isCustom ? ' selected' : ''}>🌐 Web address, email, phone or #part…</option>
+      <option value="">${t('— Nowhere yet —')}</option>${pages}
+      <option value="custom"${isCustom ? ' selected' : ''}>🌐 ${t('Web address, email, phone or #part…')}</option>
     </select>
-    <input class="input" data-link-text placeholder="instagram.com/you · you@mail.com · #contact" value="${isCustom ? esc(value) : ''}" ${isCustom ? '' : 'hidden'}>
+    <input class="input" data-link-text placeholder="${t('instagram.com/you · you@mail.com · #contact')}" value="${isCustom ? esc(value) : ''}" ${isCustom ? '' : 'hidden'}>
   </div>`;
 }
 
@@ -43,11 +44,11 @@ function picturePicker(key: string, mode: 'set' | 'add'): string {
   const pictures = Object.entries(PICTURES)
     .map(
       ([id, p]) =>
-        `<button class="pic" data-pic="${pictureRef(id)}" data-key="${key}" data-mode="${mode}" title="${p.label}" style="background:linear-gradient(135deg,${p.from},${p.to})">${p.emoji}</button>`,
+        `<button class="pic" data-pic="${pictureRef(id)}" data-key="${key}" data-mode="${mode}" title="${t(p.label)}" style="background:linear-gradient(135deg,${p.from},${p.to})">${p.emoji}</button>`,
     )
     .join('');
   return `<div class="pic-grid">${pictures}</div>
-    <label class="btn small upload">📁 Use my own picture<input type="file" accept="image/*" data-upload="${key}" data-mode="${mode}" hidden></label>`;
+    <label class="btn small upload">📁 ${t('Use my own picture')}<input type="file" accept="image/*" data-upload="${key}" data-mode="${mode}" hidden></label>`;
 }
 
 function rowsEditor(key: string, columns: RowColumn[], rows: Row[], addLabel = '+ Add'): string {
@@ -56,11 +57,11 @@ function rowsEditor(key: string, columns: RowColumn[], rows: Row[], addLabel = '
     if (column.type === 'link') return linkPicker(value, `data-col="${column.key}"`);
     if (column.type === 'select') {
       const options = column
-        .options!.map((o) => `<option value="${o.value}"${o.value === value ? ' selected' : ''}>${o.label}</option>`)
+        .options!.map((o) => `<option value="${o.value}"${o.value === value ? ' selected' : ''}>${t(o.label)}</option>`)
         .join('');
       return `<select class="input" data-col="${column.key}">${options}</select>`;
     }
-    return `<input class="input" data-col="${column.key}" value="${esc(value)}" placeholder="${esc(column.label)}">`;
+    return `<input class="input" data-col="${column.key}" value="${esc(value)}" placeholder="${esc(t(column.label))}">`;
   };
   const items = rows
     .map(
@@ -70,14 +71,14 @@ function rowsEditor(key: string, columns: RowColumn[], rows: Row[], addLabel = '
       </div>`,
     )
     .join('');
-  return `<div class="rows" data-rows="${key}">${items}<button class="btn small block" data-add-row>${esc(addLabel)}</button></div>`;
+  return `<div class="rows" data-rows="${key}">${items}<button class="btn small block" data-add-row>${esc(t(addLabel))}</button></div>`;
 }
 
 export function fieldHTML(field: Field, item: Furniture): string {
   const value = item.props[field.key] ?? '';
-  const hint = field.hint ? `<small class="hint">${esc(field.hint)}</small>` : '';
-  const labelled = (control: string) => `<label class="field"><span>${field.label}</span>${control}${hint}</label>`;
-  const grouped = (control: string) => `<div class="field"><span>${field.label}</span>${control}${hint}</div>`;
+  const hint = field.hint ? `<small class="hint">${esc(t(field.hint))}</small>` : '';
+  const labelled = (control: string) => `<label class="field"><span>${t(field.label)}</span>${control}${hint}</label>`;
+  const grouped = (control: string) => `<div class="field"><span>${t(field.label)}</span>${control}${hint}</div>`;
 
   switch (field.type) {
     case 'text':
@@ -88,14 +89,14 @@ export function fieldHTML(field: Field, item: Furniture): string {
       return labelled(`<textarea class="input code" rows="8" spellcheck="false" data-field="${field.key}">${esc(value)}</textarea>`);
     case 'select': {
       const options = field
-        .options!.map((o) => `<option value="${o.value}"${o.value === value ? ' selected' : ''}>${o.label}</option>`)
+        .options!.map((o) => `<option value="${o.value}"${o.value === value ? ' selected' : ''}>${t(o.label)}</option>`)
         .join('');
       return labelled(`<select class="input" data-field="${field.key}">${options}</select>`);
     }
     case 'link':
       return grouped(linkPicker(value, `data-link-field="${field.key}"`));
     case 'image': {
-      const current = value ? `<img src="${esc(resolveImage(value))}" alt="">` : '<div class="muted">No picture</div>';
+      const current = value ? `<img src="${esc(resolveImage(value))}" alt="">` : `<div class="muted">${t('No picture')}</div>`;
       return grouped(`<div class="img-current">${current}</div>${picturePicker(field.key, 'set')}`);
     }
     case 'images': {
@@ -108,14 +109,14 @@ export function fieldHTML(field: Field, item: Furniture): string {
         )
         .join('');
       return grouped(
-        `<div class="img-list">${chips}</div><small class="hint">Click pictures below to add them:</small>${picturePicker(field.key, 'add')}`,
+        `<div class="img-list">${chips}</div><small class="hint">${t('Click pictures below to add them:')}</small>${picturePicker(field.key, 'add')}`,
       );
     }
     case 'rows':
       return grouped(rowsEditor(field.key, field.columns!, parseJSON<Row[]>(value, []), field.addLabel));
     case 'formfields':
       return grouped(
-        `<small class="hint">Each input gets a label. Mark the important ones as Required.</small>${formBuilderHTML(field.key, value)}`,
+        `<small class="hint">${t('Each input gets a label. Mark the important ones as Required.')}</small>${formBuilderHTML(field.key, value)}`,
       );
   }
 }
@@ -155,7 +156,7 @@ function bindRows(wrap: HTMLElement, read: () => Row[], save: (rows: Row[], rebu
   });
   wrap.querySelector('[data-add-row]')!.addEventListener('click', () => {
     sfx('pop');
-    save([...read(), { label: 'New button', link: '', variant: 'outline' }], true);
+    save([...read(), { label: t('New button'), link: '', variant: 'outline' }], true);
   });
 }
 
@@ -193,7 +194,7 @@ export function bindFields(el: HTMLElement, item: Furniture, save: SaveValue) {
         save(key, input.dataset.mode === 'set' ? url : appendTo(item.props[key], url), true);
         sfx('pop');
       } catch {
-        events.emit('toast', { text: 'Could not read that picture. Try a JPG or PNG.', kind: 'bad' });
+        events.emit('toast', { text: t('Could not read that picture. Try a JPG or PNG.'), kind: 'bad' });
       }
     }),
   );

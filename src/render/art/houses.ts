@@ -1,5 +1,5 @@
 import { houseDef, type HouseDef } from '../../core/catalog';
-import type { HouseKind } from '../../core/types';
+import type { BuildingLook, HouseKind } from '../../core/types';
 import { formatPoints, shade, type Anim, type Art, type Point } from './svg';
 
 const n1 = (n: number) => n.toFixed(1);
@@ -21,8 +21,9 @@ interface Body {
   right: (t: number, h: number) => Point;
 }
 
-function bodyOf(kind: HouseKind): Body {
-  const def = houseDef(kind);
+function bodyOf(kind: HouseKind, look?: BuildingLook): Body {
+  const base = houseDef(kind);
+  const def: HouseDef = look ? { ...base, wall: look.wall, roof: look.roof, roof3d: look.shape, emoji: look.emoji ?? base.emoji } : base;
   const hw = kind === 'townhall' || kind === 'castle' ? 38 : 30;
   const hh = hw / 2;
   return {
@@ -233,20 +234,20 @@ const ROOFS: Record<HouseDef['roof3d'], (b: Body) => string> = {
 const NIGHT_GLOW =
   '<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
 
-export function houseArt(kind: HouseKind, night = false): Art {
-  const b = bodyOf(kind);
+export function houseArt(kind: HouseKind, night = false, look?: BuildingLook): Art {
+  const b = bodyOf(kind, look);
   const svg = (night ? NIGHT_GLOW : '') + walls(b) + windows(b, night) + door(b) + ROOFS[b.def.roof3d](b);
   return { svg, box: [-b.hw * 1.6, -(b.height + b.roofHeight + 46), b.hw * 1.6, b.hh * 1.6 + 8] };
 }
 
 /** Height of the roof top above the tile centre (used to place bubbles over houses). */
-export const houseTop = (kind: HouseKind) => {
-  const b = bodyOf(kind);
+export const houseTop = (kind: HouseKind, look?: BuildingLook) => {
+  const b = bodyOf(kind, look);
   return b.height + b.roofHeight + 6;
 };
 
-export function houseAnims(kind: HouseKind): Anim[] {
-  const { def, hw, height: H, roofHeight } = bodyOf(kind);
+export function houseAnims(kind: HouseKind, look?: BuildingLook): Anim[] {
+  const { def, hw, height: H, roofHeight } = bodyOf(kind, look);
   if (kind === 'cottage') return [{ kind: 'smoke', x: hw * 0.42 - 2.5, y: -(H + roofHeight * 0.48 + 20) }];
   if (kind === 'townhall') return [{ kind: 'flag', x: 0, y: -(H + hw * 0.78 * 1.05 + 26) }];
   if (kind === 'castle') return [{ kind: 'flag', x: 0, y: -(H + 34) }];

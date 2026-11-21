@@ -34,7 +34,7 @@
   .quest-card {
     width: calc(100% - 90px);
     top: 10px;
-    left: 10px;
+    inset-inline-start: 10px;
     padding: 10px;
   }
   .q-desc {
@@ -43,7 +43,7 @@
   .map-tools {
     top: auto;
     bottom: 90px;
-    right: 10px;
+    inset-inline-end: 10px;
   }
   .int-body {
     grid-template-columns: 1fr;

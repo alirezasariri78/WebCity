@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { FURNITURE } from '../../src/core/catalog';
 import type { FormField } from '../../src/core/types';
-import { renderSection } from '../../src/site';
+import { renderSection, siteText } from '../../src/site';
 import { RENDERED_KINDS } from '../../src/site/sections';
 import { parseHtml, part } from '../helpers';
 
-const ctx = { files: new Map([['home', 'index.html']]) };
+const ctx = { files: new Map([['home', 'index.html']]), text: siteText('en') };
 const render = (...args: Parameters<typeof part>) => parseHtml(renderSection(part(...args), ctx));
 
 describe('every piece of furniture', () => {

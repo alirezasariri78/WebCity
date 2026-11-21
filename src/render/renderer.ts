@@ -130,7 +130,7 @@ export class TownRenderer {
     const s = sprite(v.key, v.make);
     if (!s) return;
     const c = iso(v.gx, v.gy);
-    const y = c.y + 6 - (v.moving ? Math.abs(Math.sin(time / 110 + v.seed)) * 1.6 : 0);
+    const y = c.y + 6 - (v.moving && v.bob ? Math.abs(Math.sin(time / 110 + v.seed)) * 1.6 : 0);
     const { ctx } = this;
     ctx.globalAlpha = v.alpha;
     if (v.flip) {
