@@ -987,6 +987,7 @@ function frame(now: number) {
   needsDraw = false;
   const t0 = performance.now();
   renderer.draw(scene, now);
+  needsDraw = renderer.groundBusy;
   perf.frames++;
   perf.drawMs += performance.now() - t0;
 }

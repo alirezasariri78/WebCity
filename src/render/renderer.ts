@@ -29,12 +29,19 @@ export class TownRenderer {
   private height = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    this.ctx = canvas.getContext('2d', { alpha: true, desynchronized: true })!;
+    // Not `desynchronized`: that low-latency mode skips the compositor and makes the map
+    // flicker on many Windows graphics cards, under the quest card and buttons above it.
+    this.ctx = canvas.getContext('2d', { alpha: true })!;
     this.resize();
   }
 
   get groundRebuilds() {
     return this.ground.rebuilds;
+  }
+
+  /** Some ground is still being repainted after a zoom, so another frame is needed. */
+  get groundBusy() {
+    return this.ground.busy;
   }
 
   get size() {

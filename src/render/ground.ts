@@ -8,6 +8,8 @@ const CHUNK = 8;
 const MARGIN = 26;
 const MAX_BUCKET = 2.5;
 const MAX_CHUNKS = 36;
+/** Chunks repainted per frame after a zoom change; the rest keep their old, stretched bitmap until then. */
+const REPAINTS_PER_FRAME = 3;
 const ASPHALT = '#6b7280';
 const SAND = '#f0dca0';
 const ROCK = '#a9a39a';
@@ -195,7 +197,10 @@ function drawTile(ctx: CanvasRenderingContext2D, scene: Scene, p: Palette, seen:
 
 interface Chunk {
   canvas: HTMLCanvasElement;
-  key: string;
+  /** The land this bitmap shows; when it changes the chunk must be repainted before drawing. */
+  ground: string;
+  /** The zoom bucket it was painted at; a different one only makes it a little soft. */
+  bucket: number;
   used: number;
 }
 
@@ -215,34 +220,47 @@ function chunkBounds(cx: number, cy: number) {
 /**
  * The ground is cut into chunks of 8×8 tiles. Each chunk is painted once into its own bitmap
  * and only repainted when the land, roads or zoom bucket change; only visible chunks are drawn.
+ * Land changes repaint at once. Zoom changes repaint a few chunks per frame: repainting the
+ * whole map in one frame made zooming stutter.
  */
 export class GroundCache {
   private chunks = new Map<string, Chunk>();
+  private readonly stale: [string, number, number][] = [];
   rebuilds = 0;
+
+  /** True while some visible chunks still wait to be repainted at the new zoom. */
+  get busy() {
+    return this.stale.length > 0;
+  }
 
   draw(ctx: CanvasRenderingContext2D, scene: Scene, pixelsPerUnit: number, view: { x0: number; y0: number; x1: number; y1: number }) {
     const wanted = 2 ** (Math.ceil(Math.log2(pixelsPerUnit) * 3) / 3);
     const bucket = Math.min(MAX_BUCKET, wanted);
     const count = Math.ceil(scene.world.size / CHUNK);
     const frame = performance.now();
+    const stale = this.stale;
+    stale.length = 0;
     for (let cy = 0; cy < count; cy++) {
       for (let cx = 0; cx < count; cx++) {
         const b = chunkBounds(cx, cy);
         if (b.right < view.x0 || b.left > view.x1 || b.bottom < view.y0 || b.top > view.y1) continue;
         const id = `${cx},${cy}`;
-        const key = `${scene.groundKey}|${bucket.toFixed(3)}`;
         let chunk = this.chunks.get(id);
-        if (!chunk || chunk.key !== key) chunk = this.paint(id, cx, cy, key, bucket, scene);
+        if (!chunk || chunk.ground !== scene.groundKey) chunk = this.paint(id, cx, cy, bucket, scene);
+        else if (chunk.bucket !== bucket) stale.push([id, cx, cy]);
         chunk.used = frame;
         ctx.drawImage(chunk.canvas, b.left, b.top, b.right - b.left, b.bottom - b.top);
       }
     }
+    // Painted now, shown from the next frame on.
+    for (const [id, cx, cy] of stale.splice(0, REPAINTS_PER_FRAME)) this.paint(id, cx, cy, bucket, scene);
   }
 
-  private paint(id: string, cx: number, cy: number, key: string, bucket: number, scene: Scene): Chunk {
+  private paint(id: string, cx: number, cy: number, bucket: number, scene: Scene): Chunk {
     const b = chunkBounds(cx, cy);
     const chunk = this.chunks.get(id) ?? this.newChunk(id);
-    chunk.key = key;
+    chunk.ground = scene.groundKey;
+    chunk.bucket = bucket;
     chunk.canvas.width = Math.ceil((b.right - b.left) * bucket);
     chunk.canvas.height = Math.ceil((b.bottom - b.top) * bucket);
     const g = chunk.canvas.getContext('2d')!;
@@ -272,7 +290,7 @@ export class GroundCache {
       oldest[1].canvas.width = 0;
       this.chunks.delete(oldest[0]);
     }
-    const chunk = { canvas: document.createElement('canvas'), key: '', used: 0 };
+    const chunk: Chunk = { canvas: document.createElement('canvas'), ground: '', bucket: 0, used: 0 };
     this.chunks.set(id, chunk);
     return chunk;
   }
