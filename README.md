@@ -115,3 +115,7 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Want to add a build
 ## Say hi
 
 If WebCity made you smile, a ⭐ on the repo helps other people find it. Ideas, bug reports and pull requests are all welcome.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
