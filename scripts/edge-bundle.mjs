@@ -48,4 +48,4 @@ addEventListener('fetch', (event) => event.respondWith(handle(event.request)));
 
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, 'bundle.js'), bundle);
-console.log(`${Object.keys(table).length} files → ${OUT}/bundle.js (${Math.round(bundle.length / 1024)} KB)`);
+console.warn(`${Object.keys(table).length} files → ${OUT}/bundle.js (${Math.round(bundle.length / 1024)} KB)`);
