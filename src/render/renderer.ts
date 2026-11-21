@@ -2,7 +2,7 @@ import { bobOffset, drawEffect, swayAngle } from './effects';
 import { TILE_H, iso } from './geometry';
 import { GroundCache, diamond } from './ground';
 import type { Camera, Scene, SceneObject, Villager } from './scene';
-import { paintedSprite, sprite, spriteHit, type Sprite } from './sprites';
+import { nextSpriteFrame, paintedSprite, sprite, spriteHit, type Sprite } from './sprites';
 
 const MAX_PIXEL_RATIO = 2;
 const POP_MS = 600;
@@ -55,6 +55,7 @@ export class TownRenderer {
   }
 
   draw(scene: Scene, time: number) {
+    nextSpriteFrame();
     const { ctx, camera, pixelRatio } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

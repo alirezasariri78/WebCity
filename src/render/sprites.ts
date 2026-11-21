@@ -66,20 +66,32 @@ async function rasterize(art: Art): Promise<Sprite> {
   return { image: await toGpu(full), x0, y0, w, h, alpha: alphaMask(full, w, h) };
 }
 
-/** Most sprites kept in GPU memory. Growing buildings create new sizes, so old ones are let go. */
+/**
+ * Most sprites kept in GPU memory. Growing buildings create new sizes, so old ones are let go,
+ * but never one drawn in this frame or the last: a big city can show more than this many at
+ * once, and throwing those away made buildings blink in and out and redraw forever.
+ */
 const MAX_SPRITES = 260;
+
+const lastUsed = new Map<string, number>();
+let frame = 0;
+
+/** The renderer calls this once per frame, so the cache knows which sprites are on screen. */
+export const nextSpriteFrame = () => frame++;
 
 function evictOldest() {
   for (const [key, value] of cache) {
     if (cache.size <= MAX_SPRITES) return;
-    if (value === 'loading') continue;
+    if (value === 'loading' || (lastUsed.get(key) ?? -Infinity) >= frame - 1) continue;
     if (typeof ImageBitmap !== 'undefined' && value.image instanceof ImageBitmap) value.image.close();
     cache.delete(key);
+    lastUsed.delete(key);
   }
 }
 
 /** Returns the cached sprite, or null while it is still being drawn (it is started on first request). */
 export function sprite(key: string, make: () => Art): Sprite | null {
+  lastUsed.set(key, frame);
   const hit = cache.get(key);
   if (hit === 'loading') return null;
   if (hit) {
@@ -94,7 +106,10 @@ export function sprite(key: string, make: () => Art): Sprite | null {
       cache.set(key, s);
       onReady();
     })
-    .catch(() => cache.delete(key));
+    .catch(() => {
+      cache.delete(key);
+      lastUsed.delete(key);
+    });
   return null;
 }
 
