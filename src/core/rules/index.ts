@@ -4,3 +4,7 @@ export * from './levels';
 export * from './rating';
 export * from './roads';
 export * from './townQueries';
+export * from './challenges';
+export * from './empire';
+export * from './world';
+export * from './edits';

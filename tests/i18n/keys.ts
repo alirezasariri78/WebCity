@@ -1,11 +1,14 @@
-import { CITY, DECOR, FURNITURE, HOUSES, PICTURES, THEMES } from '../../src/core/catalog';
+import { CITY, DECOR, FURNITURE, HOUSES, PICTURES, TECHS, THEMES, WONDERS } from '../../src/core/catalog';
 import { CONTROLS, FONTS, GROUPS } from '../../src/core/design';
-import { ERAS, SITE_FEATURES, rateTown, unlocksAt } from '../../src/core/rules';
+import { CHALLENGES, ERAS, RESOURCES, SITE_FEATURES, TERRAIN_NAMES, rateTown, unlocksAt } from '../../src/core/rules';
 import { newGame } from '../../src/game/factory';
 import { ACHIEVEMENTS, REPEATING, STORY } from '../../src/game/progress';
 import { DIRECTIONS } from '../../src/ui/designStudio';
 import { TIPS } from '../../src/ui/hud/helper';
 import { FIELD_TYPES } from '../../src/ui/house/formBuilder';
+import { TOOLS, TOOL_HINTS } from '../../src/ui/house/houseEditor';
+import { MOOD_GROUPS } from '../../src/ui/house/moods';
+import { YIELD_HINTS, YIELD_NAMES } from '../../src/ui/hud/empire';
 import { TOUR_STEPS } from '../../src/ui/tour';
 import { SHAPES } from '../../src/ui/town/designer';
 
@@ -76,6 +79,26 @@ function keysFromData(): string[] {
   FIELD_TYPES.forEach((f) => add(f.label));
   DIRECTIONS.forEach(([, name]) => add(name));
   SHAPES.forEach((s) => add(s.label));
+  TECHS.forEach((x) => add(x.name, x.desc));
+  WONDERS.forEach((w) => add(w.name, w.gift));
+  RESOURCES.forEach((r) => add(r.name));
+  Object.values(TERRAIN_NAMES).forEach((x) => add(x.name));
+  CHALLENGES.forEach((c) => add(c.title));
+  Object.values(YIELD_NAMES).forEach((x) => add(x));
+  Object.values(YIELD_HINTS).forEach((x) => add(x));
+  MOOD_GROUPS.forEach((g) => add(g.title, g.hint, ...g.options.map((o) => o.name)));
+  TOOLS.forEach((x) => add(x.label));
+  Object.values(TOOL_HINTS).forEach((x) => add(x));
+  add(
+    'Hidden treasure!',
+    'You found an old chest with {coins} 🪙 inside.',
+    'Ancient scrolls!',
+    'Old books full of ideas: +{science} 🔬 science.',
+    'A forgotten statue!',
+    'People come from far away to see it. Your borders will grow soon.',
+    'A golden mask!',
+    'Your people are so proud that a Golden Age begins.',
+  );
   return keys;
 }
 

@@ -1,5 +1,6 @@
 import { cityDef } from '../catalog';
-import type { CityBuilding, SiteFeature, Town } from '../types';
+import type { CityBuilding, SiteFeature, Town, WonderKind } from '../types';
+import { isWonderDone } from './empire';
 
 export type EraId = 'village' | 'town' | 'city' | 'metropolis';
 
@@ -76,7 +77,10 @@ export interface SiteFeatureDef {
   name: string;
   emoji: string;
   desc: string;
-  era: EraId;
+  /** Unlocked by reaching an era… */
+  era?: EraId;
+  /** …or by finishing a wonder. */
+  wonder?: WonderKind;
 }
 
 /** Website extras that unlock as the town grows. */
@@ -95,13 +99,44 @@ export const SITE_FEATURES: SiteFeatureDef[] = [
     desc: 'A thin bar at the top that fills up as visitors scroll.',
     era: 'city',
   },
-  { id: 'darkToggle', name: 'Dark mode switch', emoji: '🌙', desc: 'Visitors can switch your site to dark colours.', era: 'city' },
   { id: 'pageFade', name: 'Smooth page changes', emoji: '✨', desc: 'Pages fade softly in and out.', era: 'metropolis' },
+  {
+    id: 'heroGlow',
+    name: 'Glowing banner',
+    emoji: '🌺',
+    desc: 'A softly moving colour glow behind the first part of every page.',
+    wonder: 'gardens',
+  },
+  { id: 'search', name: 'Website search', emoji: '🔍', desc: 'A search box that finds anything on your website.', wonder: 'library' },
+  { id: 'contactFab', name: 'Contact button', emoji: '💬', desc: 'A floating "Contact us" button on every page.', wonder: 'lighthouse' },
+  { id: 'lightbox', name: 'Big pictures', emoji: '🖼️', desc: 'Visitors can tap any picture to see it big.', wonder: 'colosseum' },
+  {
+    id: 'darkToggle',
+    name: 'Dark mode switch',
+    emoji: '🌙',
+    desc: 'Visitors can switch your site to dark colours.',
+    wonder: 'observatory',
+  },
+  {
+    id: 'installable',
+    name: 'Install as an app',
+    emoji: '📲',
+    desc: 'Your website can be installed on phones like an app.',
+    wonder: 'needle',
+  },
+  {
+    id: 'seoPack',
+    name: 'Google-ready',
+    emoji: '🚀',
+    desc: 'Share previews for social media and a robots file for search engines.',
+    wonder: 'launch',
+  },
 ];
 
 const eraIndex = (id: EraId) => ERAS.findIndex((e) => e.id === id);
 
-export const isFeatureUnlocked = (feature: SiteFeatureDef, town: Town) => eraIndex(eraFor(population(town)).id) >= eraIndex(feature.era);
+export const isFeatureUnlocked = (feature: SiteFeatureDef, town: Town) =>
+  feature.wonder ? isWonderDone(town, feature.wonder) : eraIndex(eraFor(population(town)).id) >= eraIndex(feature.era ?? 'village');
 
 /** Unlocked features the player has not switched off. */
 export function activeFeatures(town: Town): SiteFeature[] {

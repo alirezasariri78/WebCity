@@ -20,7 +20,10 @@ export class LivePage {
   private box: HTMLElement | null = null;
   device: 'desktop' | 'phone' = 'desktop';
 
-  constructor(private readonly onSelect: (id: string | null) => void) {
+  constructor(
+    private readonly onSelect: (id: string | null) => void,
+    private readonly onText: (id: string, before: string, after: string) => void,
+  ) {
     addEventListener('message', (e) => this.onMessage(e));
   }
 
@@ -87,8 +90,9 @@ export class LivePage {
 
   private onMessage(e: MessageEvent) {
     if (!this.frame || e.source !== this.frame.contentWindow) return;
-    const data = (e.data ?? {}) as { tbScroll?: number; tbSelect?: string | null };
+    const data = (e.data ?? {}) as { tbScroll?: number; tbSelect?: string | null; tbText?: { id: string; before: string; after: string } };
     if (typeof data.tbScroll === 'number') this.scrollY = data.tbScroll;
+    if (data.tbText) this.onText(data.tbText.id, data.tbText.before, data.tbText.after);
     if ('tbSelect' in data) this.onSelect(data.tbSelect ?? null);
   }
 }

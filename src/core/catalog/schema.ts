@@ -51,6 +51,8 @@ export interface HouseDef {
   roof: string;
   height: number;
   roof3d: RoofShape;
+  /** What the page building makes for the city, when its page is filled in. */
+  yields: { food?: number; gold?: number; science?: number; culture?: number };
   template: { kind: FurnitureKind; props?: Record<string, string> }[];
 }
 
@@ -73,6 +75,8 @@ export interface CityDef {
   roof: string;
   shape: RoofShape;
   trim: BuildingTrim;
+  /** Science, culture or food made by each floor. */
+  yields?: { food?: number; science?: number; culture?: number };
 }
 
 export interface DecorDef {

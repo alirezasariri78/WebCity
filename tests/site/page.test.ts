@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { THEMES, themeDef } from '../../src/core/catalog';
-import { buildSite, pageHTML, pageParts, siteCSS } from '../../src/site';
+import { buildSite, pageHTML, pageParts, searchIndex, siteCSS } from '../../src/site';
 import { house, parseHtml, part, town } from '../helpers';
 
 function bakery() {
@@ -18,7 +18,7 @@ describe('pages', () => {
     expect([...doc.querySelectorAll('nav a.link')].map((a) => a.getAttribute('href'))).toEqual(['index.html', 'contact.html']);
     expect(doc.querySelector('nav a.link.active')!.textContent).toBe('Home');
     expect(doc.querySelectorAll('main .sec')).toHaveLength(t.houses[0].items.length);
-    expect(doc.querySelector('footer')!.textContent).toContain('Built with Town Builder');
+    expect(doc.querySelector('footer')!.textContent).toContain('Built with WebCity');
   });
 
   it('links a shared stylesheet when exported and inlines it in previews', () => {
@@ -124,7 +124,7 @@ describe('languages and direction', () => {
     expect(doc.documentElement.getAttribute('lang')).toBe('fa');
     expect(doc.documentElement.getAttribute('dir')).toBe('rtl');
     expect(html).toContain('Vazirmatn');
-    expect(doc.querySelector('footer')!.textContent).toContain('شهرساز');
+    expect(doc.querySelector('footer')!.textContent).toContain('وب‌سیتی');
   });
 
   it('lets the player force a direction for the site, a page or one part', () => {
@@ -155,5 +155,56 @@ describe('website extras', () => {
     expect(html).toContain('Back to top');
     t.site = { features: { backToTop: false, readingBar: false, darkToggle: false, pageFade: false } };
     expect(pageHTML(t, t.houses[0], 'export')).not.toContain('Back to top');
+  });
+});
+
+describe('wonder extras on the website', () => {
+  const withWonders = (...kinds: string[]) => {
+    const t = bakery();
+    t.wonders = kinds.map((kind, i) => ({ id: `w${i}`, kind: kind as never, x: 9, y: i, startedAt: 0, done: true }));
+    return t;
+  };
+
+  it('adds a search box with every page in its index', () => {
+    const t = withWonders('library');
+    const doc = parseHtml(pageHTML(t, t.houses[0], 'export'));
+    expect(doc.querySelector('.search-btn')).not.toBeNull();
+    expect(doc.querySelector('.search-box input')).not.toBeNull();
+    const index = JSON.parse(searchIndex(t)) as { t: string; u: string }[];
+    expect(index.map((p) => p.u)).toEqual(['index.html', 'contact.html']);
+  });
+
+  it('adds a floating contact button that goes to the contact page', () => {
+    const t = withWonders('lighthouse');
+    const fab = parseHtml(pageHTML(t, t.houses[0], 'export')).querySelector('a.contact-fab');
+    expect(fab?.getAttribute('href')).toBe('contact.html');
+  });
+
+  it('makes the site installable with a manifest and an icon', () => {
+    const t = withWonders('needle');
+    const html = pageHTML(t, t.houses[0], 'export');
+    expect(parseHtml(html).querySelector('link[rel="manifest"]')).not.toBeNull();
+    const files = buildSite(t).map((f) => f.path);
+    expect(files).toContain('manifest.webmanifest');
+    expect(files).toContain('icon.svg');
+    const manifest = JSON.parse(buildSite(t).find((f) => f.path === 'manifest.webmanifest')!.content as string);
+    expect(manifest.name).toBe(t.name);
+  });
+
+  it('adds robots.txt, and a sitemap once the site address is known', () => {
+    const t = withWonders('launch');
+    expect(buildSite(t).map((f) => f.path)).toContain('robots.txt');
+    expect(buildSite(t).map((f) => f.path)).not.toContain('sitemap.xml');
+    t.site = { url: 'https://bakery.example/' };
+    const sitemap = buildSite(t).find((f) => f.path === 'sitemap.xml')!.content as string;
+    expect(sitemap).toContain('<loc>https://bakery.example/contact.html</loc>');
+  });
+
+  it('adds nothing from wonders that are still being built', () => {
+    const t = withWonders('library', 'lighthouse');
+    t.wonders.forEach((w) => (w.done = false));
+    const html = pageHTML(t, t.houses[0], 'export');
+    expect(html).not.toContain('search-box');
+    expect(html).not.toContain('contact-fab');
   });
 });

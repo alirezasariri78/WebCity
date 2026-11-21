@@ -1,21 +1,64 @@
-import { MAX_LAND, cityDef, cityLook, decorDef, houseDef, houseLook, landSize, roomSlots, themeDef, upgradeCost } from '../../core/catalog';
-import { ERAS, buildRoads, floorCap, type Tile } from '../../core/rules';
-import type { BuildingLook, CityBuilding, CityKind, Decor, DecorKind, House, HouseKind } from '../../core/types';
+import { cityDef, cityLook, decorDef, houseDef, houseLook, roomSlots, themeDef, upgradeCost, wonderDef } from '../../core/catalog';
+import {
+  ERAS,
+  buildRoads,
+  explored,
+  floorCap,
+  isBuildable,
+  isOwned,
+  isRuin,
+  resourceAt,
+  ruinsLeft,
+  terrainAt,
+  tileIndex,
+  type Tile,
+} from '../../core/rules';
+import type { BuildingLook, CityBuilding, CityKind, Decor, DecorKind, House, HouseKind, Wonder, WonderKind } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { makeHouse, uid } from '../../game/factory';
 import { checkpoint, clearHistory } from '../../game/history';
-import { bump, cityPopulation, currentEra, earnPassive, growCity, income, level, reward, spend } from '../../game/progress';
+import {
+  buyTile,
+  bump,
+  cityPopulation,
+  currentEra,
+  earnPassive,
+  empireTick,
+  exploreRuin,
+  growCity,
+  growthSteps,
+  income,
+  isGoldenAge,
+  level,
+  reward,
+  spend,
+  startWonder,
+} from '../../game/progress';
 import { commit, state, version } from '../../game/store';
 import { t } from '../../i18n';
-import { CAR_VARIANTS, DECOR_VARIANTS, VILLAGER_VARIANTS, carArt, decorAnims, decorArt, villagerArt } from '../../render/art';
-import { cityVisual, houseVisual } from '../../render/buildings';
+import {
+  CAR_VARIANTS,
+  DECOR_VARIANTS,
+  FOREST_VARIANTS,
+  MOUNTAIN_VARIANTS,
+  VILLAGER_VARIANTS,
+  carArt,
+  decorAnims,
+  decorArt,
+  forestArt,
+  mountainArt,
+  ruinArt,
+  villagerArt,
+} from '../../render/art';
+import { cityVisual, houseVisual, wonderVisual } from '../../render/buildings';
 import { TILE_H, TILE_W, iso, toGrid } from '../../render/geometry';
 import { TownRenderer } from '../../render/renderer';
 import { isAnimating, type Scene, type SceneObject, type SpriteRef } from '../../render/scene';
 import { onSpriteReady } from '../../render/sprites';
 import { confirmModal, promptModal } from '../common/modal';
 import { openBuildingDesigner } from './designer';
+import { showRuinFind } from './ruins';
 import { floorCost, showPopover, type PopoverAction, type PopoverTarget } from './popover';
 import { spawnBubble, treasureOf, treasurePrize } from './treasure';
 import { Crowd } from './villagers';
@@ -25,6 +68,7 @@ export type PlaceMode =
   | { type: 'house'; kind: HouseKind; look?: BuildingLook; name?: string }
   | { type: 'city'; kind: CityKind; look?: BuildingLook; name?: string }
   | { type: 'decor'; kind: DecorKind }
+  | { type: 'wonder'; kind: WonderKind }
   | { type: 'move'; id: string };
 
 export interface TownViewOptions {
@@ -37,6 +81,7 @@ type Point = { x: number; y: number };
 
 const INCOME_INTERVAL_MS = 20_000;
 const GROWTH_INTERVAL_MS = 35_000;
+const EMPIRE_INTERVAL_MS = 10_000;
 const IDLE_AFTER_MS = 4000;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.6;
@@ -47,9 +92,8 @@ const CITY_ERA_INDEX = ERAS.findIndex((e) => e.id === 'city');
 
 const scene: Scene = {
   theme: themeDef('meadow'),
-  land: 10,
-  maxLand: MAX_LAND,
-  nextLevel: 2,
+  world: { seed: 0, size: 1, owned: [], cleared: [], ruins: [], culture: 0 },
+  groundKey: '',
   roads: new Set(),
   roadKey: '',
   paved: false,
@@ -129,6 +173,8 @@ export function mountTown(el: HTMLElement, opts: TownViewOptions) {
   start();
   setInterval(earnIncome, INCOME_INTERVAL_MS);
   setInterval(growOnce, GROWTH_INTERVAL_MS);
+  setInterval(tickEmpire, EMPIRE_INTERVAL_MS);
+  events.on('border', ({ tiles }) => celebrateBorder(tiles));
   scheduleBubble();
 }
 
@@ -146,14 +192,20 @@ export function stop() {
 
 // Camera
 
+/** Frames the land inside the borders. */
 export function fit() {
   userMovedCamera = false;
-  const n = landSize(level());
+  const world = state.town.world;
+  const xs = world.owned.map((i) => i % world.size);
+  const ys = world.owned.map((i) => Math.floor(i / world.size));
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const n = Math.max(Math.max(...xs) - x0, Math.max(...ys) - y0) + 3;
   const w = root.clientWidth || innerWidth;
   const h = root.clientHeight || innerHeight;
-  const centre = iso((n - 1) / 2, (n - 1) / 2);
+  const centre = iso((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2);
   const cam = renderer.camera;
-  cam.scale = Math.max(MIN_ZOOM, Math.min(1.5, Math.min(w / (n * TILE_W + 40), (h - 40) / (n * TILE_H + 160))));
+  cam.scale = Math.max(MIN_ZOOM, Math.min(1.3, Math.min(w / (n * TILE_W + 40), (h - 40) / (n * TILE_H + 160))));
   cam.x = w / 2 - centre.x * cam.scale;
   cam.y = h / 2 - (centre.y - 50) * cam.scale;
   cameraMoved();
@@ -188,10 +240,17 @@ function bindZoomButtons() {
 const findHouse = (id: string | null) => state.town.houses.find((h) => h.id === id);
 const findCity = (id: string | null) => state.town.city.find((c) => c.id === id);
 const findDecor = (id: string | null) => state.town.decor.find((d) => d.id === id);
-const findAny = (id: string | null) => findHouse(id) ?? findCity(id) ?? findDecor(id);
+const findWonder = (id: string | null) => state.town.wonders.find((w) => w.id === id);
+const findAny = (id: string | null) => findHouse(id) ?? findCity(id) ?? findDecor(id) ?? findWonder(id);
 
 const occupantAt = (gx: number, gy: number) =>
-  [...state.town.houses, ...state.town.city, ...state.town.decor].find((o) => o.x === gx && o.y === gy);
+  [...state.town.houses, ...state.town.city, ...state.town.decor, ...state.town.wonders].find((o) => o.x === gx && o.y === gy);
+
+/** Selected empty land is remembered as "tile:x,y". */
+const tileOf = (id: string | null) => {
+  const match = id?.match(/^(?:tile|ruin):(\d+),(\d+)$/);
+  return match ? { id: id!, x: Number(match[1]), y: Number(match[2]) } : null;
+};
 
 function targetOf(id: string | null): PopoverTarget | null {
   const house = findHouse(id);
@@ -199,18 +258,28 @@ function targetOf(id: string | null): PopoverTarget | null {
   const city = findCity(id);
   if (city) return { type: 'city', item: city };
   const decor = findDecor(id);
-  return decor ? { type: 'decor', item: decor } : null;
-}
-
-function inLand(gx: number, gy: number) {
-  const n = landSize(level());
-  return gx >= 0 && gy >= 0 && gx < n && gy < n;
+  if (decor) return { type: 'decor', item: decor };
+  const wonder = findWonder(id);
+  if (wonder) return { type: 'wonder', item: wonder };
+  const tile = tileOf(id);
+  return tile ? { type: 'tile', item: tile } : null;
 }
 
 function canPlace(gx: number, gy: number) {
-  if (!inLand(gx, gy)) return false;
+  if (!isBuildable(state.town.world, gx, gy)) return false;
   const occupant = occupantAt(gx, gy);
   return !occupant || (mode.type === 'move' && occupant.id === mode.id);
+}
+
+/** Why a tile cannot be used, in words the player understands. */
+function whyNot(gx: number, gy: number): string {
+  const world = state.town.world;
+  if (!isOwned(world, gx, gy)) return t('🚩 That land is outside your borders. Click it to claim it, or let your culture grow.');
+  const terrain = terrainAt(world, gx, gy);
+  if (terrain === 'water' || terrain === 'mountain') return t('🌊 You cannot build on water or mountains.');
+  if (resourceAt(world, gx, gy)) return t('🌾 Keep resource tiles free: your city is already using them.');
+  if (isRuin(world, gx, gy)) return t('❓ Explore the ruins first.');
+  return t('Something is already standing there.');
 }
 
 const uniqueName = (base: string) => {
@@ -250,6 +319,7 @@ function modeLabel(): string {
   if (mode.type === 'house') return `${mode.look?.emoji ?? houseDef(mode.kind).emoji} ${mode.name ?? t(houseDef(mode.kind).name)}`;
   if (mode.type === 'city') return `${mode.look?.emoji ?? cityDef(mode.kind).emoji} ${mode.name ?? t(cityDef(mode.kind).name)}`;
   if (mode.type === 'decor') return `${decorDef(mode.kind).emoji} ${t(decorDef(mode.kind).name)}`;
+  if (mode.type === 'wonder') return `${wonderDef(mode.kind).emoji} ${t(wonderDef(mode.kind).name)}`;
   return t('it');
 }
 
@@ -267,14 +337,39 @@ function updateHint() {
 function place(gx: number, gy: number, at: Point) {
   if (!canPlace(gx, gy)) {
     sfx('error');
-    if (!inLand(gx, gy)) events.emit('toast', { text: t('🔒 That land is locked. Level up to make your land bigger!'), kind: 'bad' });
+    events.emit('toast', { text: whyNot(gx, gy), kind: 'bad' });
     return;
   }
   checkpoint();
+  clearForest(gx, gy);
   if (mode.type === 'house') placeHouse(mode.kind, gx, gy, at, mode.look, mode.name);
+  else if (mode.type === 'wonder') placeWonder(mode.kind, gx, gy, at);
   else if (mode.type === 'city') placeCity(mode.kind, gx, gy, at, mode.look, mode.name);
   else if (mode.type === 'decor') placeDecor(mode.kind, gx, gy, at);
   else if (mode.type === 'move') moveObject(mode.id, gx, gy);
+}
+
+/** Building in a forest cuts it down, and the wood is sold. */
+function clearForest(gx: number, gy: number) {
+  const world = state.town.world;
+  if (mode.type === 'move' || terrainAt(world, gx, gy) !== 'forest') return;
+  world.cleared.push(tileIndex(world, gx, gy));
+  earnPassive(5);
+  floatAt(gx, gy, 40, '🪵 +5 🪙', '#8d6e63');
+}
+
+function placeWonder(kind: WonderKind, gx: number, gy: number, at: Point) {
+  const wonder = startWonder(kind, gx, gy);
+  if (!wonder) return;
+  scene.bornAt.set(wonder.id, performance.now());
+  celebrateBuild(gx, gy, at);
+  reward(50, 0, { x: at.x, y: at.y - 60 });
+  setMode({ type: 'idle' });
+  commit();
+  events.emit('toast', {
+    text: t('🏗️ Work on the {name} has started! Come back when it is finished.', { name: t(wonderDef(kind).name) }),
+    kind: 'good',
+  });
 }
 
 function celebrateBuild(gx: number, gy: number, at: Point) {
@@ -369,6 +464,41 @@ function toObject(id: string, gx: number, gy: number, visual: ReturnType<typeof 
   return { id, gx, gy, ...visual, seed: gx * 3 + gy * 7, label, stars };
 }
 
+function wonderObject(wonder: Wonder, night: boolean, now: number): SceneObject {
+  const def = wonderDef(wonder.kind);
+  const label = wonder.done ? `${def.emoji} ${t(def.name)}` : `🏗️ ${t(def.name)}`;
+  return { id: wonder.id, gx: wonder.x, gy: wonder.y, ...wonderVisual(wonder, night, now), seed: 3, label };
+}
+
+/** Forests, mountains and ruins on the land the player has seen. */
+function sceneryObjects(): SceneObject[] {
+  const world = state.town.world;
+  const objects: SceneObject[] = [];
+  const seen = explored(world);
+  const taken = new Set(occupantsKeys());
+  const ruins = new Set(ruinsLeft(world));
+  for (const i of seen) {
+    const x = i % world.size;
+    const y = Math.floor(i / world.size);
+    if (taken.has(`${x},${y}`)) continue;
+    const terrain = terrainAt(world, x, y);
+    const base = { gx: x, gy: y, scale: 1, anims: [], seed: x + y };
+    if (ruins.has(i)) {
+      objects.push({ ...base, id: `ruin:${x},${y}`, key: 'ruin', make: ruinArt, top: 60 });
+    } else if (terrain === 'forest') {
+      const variant = (x * 7 + y * 3) % FOREST_VARIANTS;
+      objects.push({ ...base, id: `forest:${i}`, key: `forest:${variant}`, make: () => forestArt(variant), top: 50, inert: true });
+    } else if (terrain === 'mountain') {
+      const variant = (x * 5 + y * 11) % MOUNTAIN_VARIANTS;
+      objects.push({ ...base, id: `mountain:${i}`, key: `mountain:${variant}`, make: () => mountainArt(variant), top: 70, inert: true });
+    }
+  }
+  return objects;
+}
+
+const occupantsKeys = () =>
+  [...state.town.houses, ...state.town.city, ...state.town.decor, ...state.town.wonders].map((o) => `${o.x},${o.y}`);
+
 function decorObject(decor: Decor): SceneObject {
   const variant = (decor.x * 7 + decor.y * 13) % DECOR_VARIANTS;
   const kind = decor.kind;
@@ -398,21 +528,25 @@ export function renderTown() {
   root.style.setProperty('--water-b', theme.water[1]);
   root.classList.toggle('night', night);
 
-  const playerLevel = level();
   const eraIndex = ERAS.indexOf(currentEra());
+  const world = state.town.world;
   scene.theme = theme;
-  scene.land = landSize(playerLevel);
-  scene.nextLevel = playerLevel + 1;
+  scene.world = world;
   scene.paved = eraIndex >= CITY_ERA_INDEX;
-  const network = buildRoads(state.town, scene.land);
+  const network = buildRoads(state.town);
   scene.roads = network.roads;
   scene.roadKey = [...network.roads].sort().join(';');
+  scene.groundKey = `${theme.id}|${scene.paved}|${world.seed}|${world.owned.length}|${world.cleared.length}|${world.ruins.length}|${scene.roadKey}`;
+  root.classList.toggle('golden', isGoldenAge());
+  const now = Date.now();
 
   const moving = mode.type === 'move' ? mode.id : null;
   scene.objects = [
     ...state.town.houses.filter((h) => h.id !== moving).map((h) => toObject(h.id, h.x, h.y, houseVisual(h, night), h.name, h.level ?? 1)),
     ...state.town.city.filter((c) => c.id !== moving).map((c) => toObject(c.id, c.x, c.y, cityVisual(c, night))),
     ...state.town.decor.filter((d) => d.id !== moving).map(decorObject),
+    ...state.town.wonders.filter((w) => w.id !== moving).map((w) => wonderObject(w, night, now)),
+    ...sceneryObjects(),
   ].sort((a, b) => a.gx + a.gy - (b.gx + b.gy) || a.gx - b.gx);
 
   scene.bubbles = scene.bubbles.filter((b) => state.town.houses.some((h) => h.x === b.gx && h.y === b.gy));
@@ -435,6 +569,7 @@ function ghost(): (SpriteRef & { scale: number }) | null {
     const kind = mode.kind;
     return { key: `decor:${kind}:0`, make: () => decorArt(kind, 0), scale: 1 };
   }
+  if (mode.type === 'wonder') return wonderVisual({ id: '', kind: mode.kind, x: 0, y: 0, startedAt: 0, done: true }, night, 0);
   if (mode.type === 'move') {
     const house = findHouse(mode.id);
     if (house) return houseVisual(house, night);
@@ -449,7 +584,11 @@ function ghost(): (SpriteRef & { scale: number }) | null {
 function updateHover() {
   scene.hover =
     mode.type !== 'idle' && hoverTile
-      ? { ...hoverTile, ok: canPlace(hoverTile.gx, hoverTile.gy), ghost: inLand(hoverTile.gx, hoverTile.gy) ? ghost() : null }
+      ? {
+          ...hoverTile,
+          ok: canPlace(hoverTile.gx, hoverTile.gy),
+          ghost: isOwned(state.town.world, hoverTile.gx, hoverTile.gy) ? ghost() : null,
+        }
       : null;
   scene.selected = selected;
   needsDraw = true;
@@ -564,10 +703,15 @@ function handleClick(e: PointerEvent, p: Point) {
     collectBubble(hit.id, { x: e.clientX, y: e.clientY });
     return;
   }
-  if (hit && hit.id !== selected) {
+  const world = renderer.toWorld(p.x, p.y);
+  const tile = toGrid(world.x, world.y);
+  const tileId =
+    state.town.world && explored(state.town.world).has(tileIndex(state.town.world, tile.gx, tile.gy)) ? `tile:${tile.gx},${tile.gy}` : null;
+  const id = hit?.id ?? tileId;
+  if (id && id !== selected) {
     sfx('click');
-    selected = hit.id;
-    scene.pokedAt.set(hit.id, performance.now());
+    selected = id;
+    if (hit) scene.pokedAt.set(hit.id, performance.now());
   } else {
     selected = null;
   }
@@ -586,6 +730,7 @@ function openPopover() {
 }
 
 async function onPopoverAction(target: PopoverTarget, action: PopoverAction, event: MouseEvent) {
+  if (target.type === 'tile') return tileAction(target.item, action, event);
   if (action === 'move') return setMode({ type: 'move', id: target.item.id });
   if (action === 'remove') return remove(target);
   if (action === 'design') return redesign(target);
@@ -614,8 +759,28 @@ async function onPopoverAction(target: PopoverTarget, action: PopoverAction, eve
   }
 }
 
+function tileAction(tile: { x: number; y: number }, action: PopoverAction, event: MouseEvent) {
+  if (action === 'claim') {
+    if (!buyTile(tile.x, tile.y)) return;
+    sfx('build');
+    reward(10, 0, { x: event.clientX, y: event.clientY - 30 });
+    commit();
+    openPopover();
+  } else if (action === 'explore') {
+    const find = exploreRuin(tile.x, tile.y);
+    if (!find) return;
+    selected = null;
+    popover.hidden = true;
+    dust(tile.x, tile.y, 24, '#ffe08a');
+    sfx('fanfare');
+    events.emit('confetti', { x: event.clientX, y: event.clientY });
+    commit();
+    showRuinFind(find);
+  }
+}
+
 async function redesign(target: PopoverTarget) {
-  if (target.type === 'decor') return;
+  if (target.type === 'decor' || target.type === 'wonder' || target.type === 'tile') return;
   const isHouse = target.type === 'house';
   const item = target.item;
   const look = isHouse ? houseLook(item.kind as HouseKind, item.look) : cityLook(item.kind as CityKind, item.look);
@@ -693,6 +858,8 @@ async function remove(target: PopoverTarget) {
   } else if (target.type === 'city') {
     state.town.city = state.town.city.filter((c) => c.id !== item.id);
     state.progress.coins += Math.floor(cityDef(target.item.kind).cost / 2);
+  } else if (target.type === 'wonder' || target.type === 'tile') {
+    return;
   } else {
     state.town.decor = state.town.decor.filter((d) => d.id !== item.id);
     state.progress.coins += Math.floor(decorDef(target.item.kind).cost / 2);
@@ -707,7 +874,7 @@ async function remove(target: PopoverTarget) {
 
 function placePopover() {
   if (!popover || popover.hidden || !selected) return;
-  const target = findAny(selected);
+  const target = findAny(selected) ?? tileOf(selected);
   if (!target) {
     popover.hidden = true;
     return;
@@ -769,7 +936,7 @@ function earnIncome() {
 /** The town grows by itself: a building somewhere gets a new floor. */
 function growOnce() {
   if (document.hidden) return;
-  const grown = growCity(1);
+  const grown = growCity(growthSteps());
   if (!grown.length) return;
   for (const building of grown) {
     scene.bornAt.set(building.id, performance.now());
@@ -778,6 +945,24 @@ function growOnce() {
   }
   sfx('pop');
   commit();
+}
+
+/** Science, culture and wonders move forward every few seconds. */
+function tickEmpire() {
+  if (document.hidden) return;
+  const before = `${state.town.world.owned.length}|${state.progress.research.done.length}|${state.town.wonders.filter((w) => w.done).length}`;
+  empireTick(EMPIRE_INTERVAL_MS / 60_000);
+  const after = `${state.town.world.owned.length}|${state.progress.research.done.length}|${state.town.wonders.filter((w) => w.done).length}`;
+  const building = state.town.wonders.some((w) => !w.done);
+  if (before !== after || building) commit();
+  else commit({ render: false });
+  options.onCoins();
+}
+
+function celebrateBorder(tiles: number[]) {
+  const world = state.town.world;
+  for (const i of tiles) dust(i % world.size, Math.floor(i / world.size), 10, '#d9ccff');
+  sfx('pop');
 }
 
 // Draw loop

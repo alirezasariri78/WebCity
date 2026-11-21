@@ -203,7 +203,7 @@ export function openDesignStudio(onClose: () => void) {
   const renderFooter = () => {
     const site = (state.town.site ??= {});
     panel.innerHTML = `<label class="field"><span>${t('Footer text (bottom of every page)')}</span><input class="input" data-footer value="${esc(site.footer ?? '')}" placeholder="© ${new Date().getFullYear()} ${esc(state.town.name)}"></label>
-      <label class="switch"><input type="checkbox" data-hide-built${site.hideBuiltWith ? ' checked' : ''}><i></i><span>${t('Hide "Built with Town Builder"')}</span></label>
+      <label class="switch"><input type="checkbox" data-hide-built${site.hideBuiltWith ? ' checked' : ''}><i></i><span>${t('Hide "Built with WebCity"')}</span></label>
       <label class="field"><span>${t('Website description for Google')}</span><textarea class="input" rows="3" maxlength="170" data-description placeholder="${t('What is your website about? One or two sentences.')}">${esc(site.description ?? '')}</textarea><small class="hint">${t('Each page can also have its own (inside the building → 🎨 Page design → 🔎 Google & tab).')}</small></label>`;
     panel.querySelector<HTMLInputElement>('[data-footer]')!.addEventListener('input', (e) => {
       checkpoint(true);

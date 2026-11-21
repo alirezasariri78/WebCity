@@ -1,4 +1,5 @@
 import { furnitureDef, houseDef } from '../core/catalog';
+import { START, createWorld } from '../core/rules/world';
 import type { Furniture, FurnitureKind, House, HouseKind, SaveData } from '../core/types';
 import { getLang, t } from '../i18n';
 
@@ -23,23 +24,28 @@ export function makeHouse(kind: HouseKind, x: number, y: number, name = houseDef
   };
 }
 
-export function newGame(): SaveData {
+export const newSeed = () => Math.floor(Math.random() * 1_000_000);
+
+export function newGame(seed = newSeed()): SaveData {
+  const { x, y } = START;
   return {
     version: 1,
     town: {
       name: t('My Town'),
       logo: '🏘️',
       theme: 'meadow',
-      houses: [makeHouse('townhall', 3, 3, t('Home'))],
+      houses: [makeHouse('townhall', x, y, t('Home'))],
       decor: [
-        { id: uid(), kind: 'tree', x: 1, y: 1 },
-        { id: uid(), kind: 'tree', x: 5, y: 1 },
-        { id: uid(), kind: 'flowers', x: 2, y: 5 },
+        { id: uid(), kind: 'tree', x: x - 2, y: y - 2 },
+        { id: uid(), kind: 'tree', x: x + 2, y: y - 2 },
+        { id: uid(), kind: 'flowers', x: x - 1, y: y + 2 },
       ],
       city: [
-        { id: uid(), kind: 'home', x: 6, y: 3, floors: 1, builtAt: Date.now() },
-        { id: uid(), kind: 'home', x: 6, y: 5, floors: 1, builtAt: Date.now() },
+        { id: uid(), kind: 'home', x: x + 3, y, floors: 1, builtAt: Date.now() },
+        { id: uid(), kind: 'home', x: x + 3, y: y + 2, floors: 1, builtAt: Date.now() },
       ],
+      world: createWorld(seed),
+      wonders: [],
       site: getLang() === 'en' ? undefined : { lang: getLang() },
     },
     progress: {
@@ -66,7 +72,13 @@ export function newGame(): SaveData {
         styled: 0,
         cityBuilt: 0,
         grown: 0,
+        tiles: 0,
+        techs: 0,
+        ruins: 0,
+        wonders: 0,
+        painted: 0,
       },
+      research: { current: null, points: 0, done: [] },
       seenLevel: 1,
       toolsUsed: [],
     },

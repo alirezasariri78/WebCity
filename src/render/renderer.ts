@@ -60,7 +60,7 @@ export class TownRenderer {
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(pixelRatio * camera.scale, 0, 0, pixelRatio * camera.scale, pixelRatio * camera.x, pixelRatio * camera.y);
 
-    this.ground.draw(ctx, scene, camera.scale * pixelRatio);
+    this.ground.draw(ctx, scene, camera.scale * pixelRatio, this.visibleBounds());
     this.drawHoverTile(scene);
     this.drawObjectsAndVillagers(scene, time);
     this.drawGhost(scene, time);
@@ -79,6 +79,7 @@ export class TownRenderer {
     }
     for (let i = scene.objects.length - 1; i >= 0; i--) {
       const o = scene.objects[i];
+      if (o.inert) continue;
       const s = sprite(o.key, o.make);
       if (!s) continue;
       const c = iso(o.gx, o.gy);

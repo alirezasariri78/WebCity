@@ -7,3 +7,4 @@ export { renderSection } from './sections';
 export { esc, parseJSON, slugify } from './text';
 export { crc32, makeZip, zipBytes } from './zip';
 export { isRtlLanguage, siteDirection, siteText } from './strings';
+export { searchIndex } from './features';

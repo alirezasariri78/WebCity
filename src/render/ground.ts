@@ -1,9 +1,18 @@
+import { explored, hash, inWorld, isOwned, resourceAt, resourceDef, terrainAt, tileIndex } from '../core/rules';
+import type { Terrain, World } from '../core/types';
 import { shade } from './art';
 import { TILE_H, TILE_W, iso } from './geometry';
 import type { Scene } from './scene';
 
-const CLIFF_DEPTH = 22;
-const MAX_CACHE_PX = 4096;
+const CHUNK = 8;
+const MARGIN = 26;
+const MAX_BUCKET = 2.5;
+const MAX_CHUNKS = 36;
+const ASPHALT = '#6b7280';
+const SAND = '#f0dca0';
+const ROCK = '#a9a39a';
+const FOG = '#e6edf7';
+const BORDER = '#ffffff';
 
 export function diamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, scale = 1) {
   const w = (TILE_W / 2) * scale;
@@ -16,112 +25,63 @@ export function diamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, s
   ctx.closePath();
 }
 
-function grassPattern(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | null {
-  const tile = document.createElement('canvas');
-  tile.width = 24;
-  tile.height = 12;
-  const g = tile.getContext('2d')!;
-  g.strokeStyle = shade(color, -0.18);
-  g.globalAlpha = 0.55;
-  g.beginPath();
-  g.moveTo(3, 9);
-  g.lineTo(4.5, 5);
-  g.lineTo(6, 9);
-  g.moveTo(15, 4);
-  g.lineTo(16.5, 1);
-  g.lineTo(18, 4);
-  g.stroke();
-  return ctx.createPattern(tile, 'repeat');
+interface Palette {
+  grass: [string, string];
+  edge: string;
+  water: [string, string];
+  road: string;
+  roadEdge: string;
 }
 
-function drawCliffs(ctx: CanvasRenderingContext2D, scene: Scene) {
-  const { land: n, theme } = scene;
-  for (let i = 0; i < n; i++) {
-    const right = iso(n - 1, i);
-    ctx.fillStyle = theme.side[1];
+function palette(scene: Scene): Palette {
+  const road = scene.paved ? ASPHALT : scene.theme.road;
+  return {
+    grass: scene.theme.ground,
+    edge: shade(scene.theme.ground[0], -0.08),
+    water: scene.theme.water,
+    road,
+    roadEdge: shade(road, -0.12),
+  };
+}
+
+function tileColor(t: Terrain, x: number, y: number, p: Palette): string {
+  const alt = (x + y) % 2;
+  if (t === 'water') return alt ? p.water[0] : shade(p.water[0], 0.04);
+  if (t === 'sand') return alt ? SAND : shade(SAND, -0.04);
+  if (t === 'mountain') return ROCK;
+  if (t === 'forest') return shade(p.grass[alt], -0.1);
+  if (t === 'hill') return shade(p.grass[alt], 0.05);
+  return p.grass[alt];
+}
+
+function drawDetail(ctx: CanvasRenderingContext2D, t: Terrain, cx: number, cy: number, x: number, y: number, seed: number) {
+  const r = hash(x, y, seed);
+  if (t === 'water') {
+    ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(right.x, right.y + TILE_H / 2);
-    ctx.lineTo(right.x + TILE_W / 2, right.y);
-    ctx.lineTo(right.x + TILE_W / 2, right.y + CLIFF_DEPTH);
-    ctx.lineTo(right.x, right.y + TILE_H / 2 + CLIFF_DEPTH);
-    ctx.fill();
-
-    const left = iso(i, n - 1);
-    ctx.fillStyle = theme.side[0];
+    const ox = (r - 0.5) * 20;
+    ctx.moveTo(cx - 10 + ox, cy);
+    ctx.quadraticCurveTo(cx - 5 + ox, cy - 3, cx + ox, cy);
+    ctx.quadraticCurveTo(cx + 5 + ox, cy + 3, cx + 10 + ox, cy);
+    ctx.stroke();
+  } else if (t === 'hill') {
+    ctx.fillStyle = 'rgba(0,0,0,.07)';
     ctx.beginPath();
-    ctx.moveTo(left.x - TILE_W / 2, left.y);
-    ctx.lineTo(left.x, left.y + TILE_H / 2);
-    ctx.lineTo(left.x, left.y + TILE_H / 2 + CLIFF_DEPTH);
-    ctx.lineTo(left.x - TILE_W / 2, left.y + CLIFF_DEPTH);
+    ctx.ellipse(cx - 8, cy + 2, 16, 7, 0, Math.PI, 0);
+    ctx.ellipse(cx + 12, cy + 6, 12, 5, 0, Math.PI, 0);
     ctx.fill();
+  } else if (t === 'grass' && r < 0.3) {
+    ctx.strokeStyle = 'rgba(0,0,0,.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 12 + r * 30, cy + 3);
+    ctx.lineTo(cx - 10.5 + r * 30, cy - 1);
+    ctx.lineTo(cx - 9 + r * 30, cy + 3);
+    ctx.stroke();
   }
 }
 
-function drawNextLand(ctx: CanvasRenderingContext2D, scene: Scene) {
-  const n = scene.land;
-  if (n >= scene.maxLand) return;
-  ctx.save();
-  ctx.setLineDash([4, 4]);
-  ctx.fillStyle = 'rgba(255,255,255,.12)';
-  ctx.strokeStyle = 'rgba(255,255,255,.35)';
-  for (let x = 0; x <= n; x++) {
-    for (let y = 0; y <= n; y++) {
-      if (x < n && y < n) continue;
-      const c = iso(x, y);
-      diamond(ctx, c.x, c.y, 0.92);
-      ctx.fill();
-      ctx.stroke();
-    }
-  }
-  ctx.restore();
-  const corner = iso(n, n);
-  ctx.font = '600 13px Fredoka, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,.9)';
-  ctx.fillText(`🔒 Lv ${scene.nextLevel}`, corner.x, corner.y + 5);
-}
-
-function drawTiles(ctx: CanvasRenderingContext2D, scene: Scene) {
-  const { theme, land: n, roads, paved } = scene;
-  const road = paved ? ASPHALT : theme.road;
-  const grass = grassPattern(ctx, theme.ground[0]);
-  const grassEdge = shade(theme.ground[0], -0.08);
-  const roadEdge = shade(road, -0.12);
-  const pebble = shade(road, -0.15);
-  ctx.lineWidth = 1;
-
-  for (let x = 0; x < n; x++) {
-    for (let y = 0; y < n; y++) {
-      const c = iso(x, y);
-      const isRoad = roads.has(`${x},${y}`);
-      diamond(ctx, c.x, c.y);
-      ctx.fillStyle = isRoad ? road : theme.ground[(x + y) % 2];
-      ctx.fill();
-      ctx.strokeStyle = isRoad ? roadEdge : grassEdge;
-      ctx.stroke();
-      if (isRoad && paved) {
-        drawLaneMarks(ctx, c.x, c.y, roads, x, y);
-      } else if (isRoad) {
-        ctx.fillStyle = pebble;
-        ctx.beginPath();
-        ctx.arc(c.x - 10, c.y - 2, 2, 0, Math.PI * 2);
-        ctx.arc(c.x + 12, c.y + 4, 1.6, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (grass) {
-        ctx.save();
-        ctx.translate(c.x, c.y);
-        ctx.fillStyle = grass;
-        diamond(ctx, 0, 0);
-        ctx.fill();
-        ctx.restore();
-      }
-    }
-  }
-}
-
-const ASPHALT = '#6b7280';
-
-/** Dashed white lines along the street, in the direction the road continues. */
 function drawLaneMarks(ctx: CanvasRenderingContext2D, cx: number, cy: number, roads: Set<string>, x: number, y: number) {
   ctx.save();
   ctx.strokeStyle = 'rgba(255,255,255,.7)';
@@ -140,46 +100,180 @@ function drawLaneMarks(ctx: CanvasRenderingContext2D, cx: number, cy: number, ro
   ctx.restore();
 }
 
-export function drawGround(ctx: CanvasRenderingContext2D, scene: Scene) {
-  drawCliffs(ctx, scene);
-  drawNextLand(ctx, scene);
-  drawTiles(ctx, scene);
+/** Wheat fields, fishing spots, gold… painted flat on the ground with their emoji. */
+function drawResource(ctx: CanvasRenderingContext2D, world: World, x: number, y: number, cx: number, cy: number, owned: boolean) {
+  const kind = resourceAt(world, x, y);
+  if (!kind) return;
+  if (kind === 'wheat') {
+    ctx.save();
+    diamond(ctx, cx, cy, 0.8);
+    ctx.clip();
+    ctx.strokeStyle = '#e0b84a';
+    ctx.lineWidth = 3;
+    for (let i = -4; i <= 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx + i * 9 - 20, cy - 12);
+      ctx.lineTo(cx + i * 9 + 20, cy + 12);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = owned ? 1 : 0.75;
+  ctx.font = '20px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(resourceDef(kind).emoji, cx, cy - 2);
+  ctx.globalAlpha = 1;
 }
 
-function bounds(land: number) {
-  const m = land + 1;
-  return { x0: -m * (TILE_W / 2) - 4, y0: -TILE_H / 2 - 4, x1: m * (TILE_W / 2) + 4, y1: m * TILE_H + CLIFF_DEPTH + 30 };
+function drawFog(ctx: CanvasRenderingContext2D, cx: number, cy: number, x: number, y: number, seed: number) {
+  diamond(ctx, cx, cy, 1.04);
+  ctx.fillStyle = FOG;
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.8)';
+  for (let i = 0; i < 3; i++) {
+    const r = hash(x * 3 + i, y, seed + 17);
+    ctx.beginPath();
+    ctx.arc(cx + (r - 0.5) * 34, cy + (hash(x, y * 3 + i, seed) - 0.5) * 14, 9 + r * 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** A bright line along the edges where owned land meets the outside. */
+function drawBorder(ctx: CanvasRenderingContext2D, world: World, x: number, y: number, cx: number, cy: number) {
+  const w = TILE_W / 2;
+  const h = TILE_H / 2;
+  const top: [number, number] = [cx, cy - h];
+  const right: [number, number] = [cx + w, cy];
+  const bottom: [number, number] = [cx, cy + h];
+  const left: [number, number] = [cx - w, cy];
+  const edges: [number, number, [number, number], [number, number]][] = [
+    [1, 0, right, bottom],
+    [-1, 0, left, top],
+    [0, 1, bottom, left],
+    [0, -1, top, right],
+  ];
+  for (const [dx, dy, a, b] of edges) {
+    if (isOwned(world, x + dx, y + dy)) continue;
+    ctx.beginPath();
+    ctx.moveTo(...a);
+    ctx.lineTo(...b);
+    ctx.strokeStyle = 'rgba(124,92,255,.55)';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+  }
+}
+
+function drawTile(ctx: CanvasRenderingContext2D, scene: Scene, p: Palette, seen: Set<number>, x: number, y: number) {
+  const world = scene.world;
+  const c = iso(x, y);
+  if (!seen.has(tileIndex(world, x, y))) {
+    drawFog(ctx, c.x, c.y, x, y, world.seed);
+    return;
+  }
+  const t = terrainAt(world, x, y);
+  const isRoad = scene.roads.has(`${x},${y}`);
+  diamond(ctx, c.x, c.y);
+  ctx.fillStyle = isRoad ? p.road : tileColor(t, x, y, p);
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = isRoad ? p.roadEdge : t === 'water' ? shade(p.water[0], -0.06) : p.edge;
+  ctx.stroke();
+  if (isRoad && scene.paved) drawLaneMarks(ctx, c.x, c.y, scene.roads, x, y);
+  else if (!isRoad) drawDetail(ctx, t, c.x, c.y, x, y, world.seed);
+  const owned = isOwned(world, x, y);
+  drawResource(ctx, world, x, y, c.x, c.y, owned);
+  if (!owned) {
+    diamond(ctx, c.x, c.y, 1.01);
+    ctx.fillStyle = 'rgba(20,30,70,.16)';
+    ctx.fill();
+  }
+}
+
+interface Chunk {
+  canvas: HTMLCanvasElement;
+  key: string;
+  used: number;
+}
+
+function chunkBounds(cx: number, cy: number) {
+  const x0 = cx * CHUNK;
+  const y0 = cy * CHUNK;
+  const x1 = x0 + CHUNK - 1;
+  const y1 = y0 + CHUNK - 1;
+  return {
+    left: iso(x0, y1).x - TILE_W / 2 - MARGIN,
+    right: iso(x1, y0).x + TILE_W / 2 + MARGIN,
+    top: iso(x0, y0).y - TILE_H / 2 - MARGIN,
+    bottom: iso(x1, y1).y + TILE_H / 2 + MARGIN,
+  };
 }
 
 /**
- * Keeps the ground as one cached bitmap and only repaints it when the land, roads,
- * theme or zoom bucket change. Panning just moves the bitmap.
+ * The ground is cut into chunks of 8×8 tiles. Each chunk is painted once into its own bitmap
+ * and only repainted when the land, roads or zoom bucket change; only visible chunks are drawn.
  */
 export class GroundCache {
-  private canvas: HTMLCanvasElement | null = null;
-  private key = '';
+  private chunks = new Map<string, Chunk>();
   rebuilds = 0;
 
-  draw(ctx: CanvasRenderingContext2D, scene: Scene, pixelsPerUnit: number) {
-    const b = bounds(scene.land);
-    const width = b.x1 - b.x0;
-    const height = b.y1 - b.y0;
-    // Big towns would need a huge bitmap when zoomed in; cap it (a little softer, much faster).
+  draw(ctx: CanvasRenderingContext2D, scene: Scene, pixelsPerUnit: number, view: { x0: number; y0: number; x1: number; y1: number }) {
     const wanted = 2 ** (Math.ceil(Math.log2(pixelsPerUnit) * 3) / 3);
-    const bucket = Math.min(wanted, MAX_CACHE_PX / width, MAX_CACHE_PX / height);
-
-    const key = `${scene.theme.id}|${scene.land}|${scene.roadKey}|${scene.paved}|${bucket.toFixed(3)}`;
-    if (key !== this.key || !this.canvas) {
-      this.key = key;
-      this.canvas ??= document.createElement('canvas');
-      this.canvas.width = Math.ceil(width * bucket);
-      this.canvas.height = Math.ceil(height * bucket);
-      const g = this.canvas.getContext('2d')!;
-      g.setTransform(bucket, 0, 0, bucket, -b.x0 * bucket, -b.y0 * bucket);
-      g.clearRect(b.x0, b.y0, width, height);
-      drawGround(g, scene);
-      this.rebuilds++;
+    const bucket = Math.min(MAX_BUCKET, wanted);
+    const count = Math.ceil(scene.world.size / CHUNK);
+    const frame = performance.now();
+    for (let cy = 0; cy < count; cy++) {
+      for (let cx = 0; cx < count; cx++) {
+        const b = chunkBounds(cx, cy);
+        if (b.right < view.x0 || b.left > view.x1 || b.bottom < view.y0 || b.top > view.y1) continue;
+        const id = `${cx},${cy}`;
+        const key = `${scene.groundKey}|${bucket.toFixed(3)}`;
+        let chunk = this.chunks.get(id);
+        if (!chunk || chunk.key !== key) chunk = this.paint(id, cx, cy, key, bucket, scene);
+        chunk.used = frame;
+        ctx.drawImage(chunk.canvas, b.left, b.top, b.right - b.left, b.bottom - b.top);
+      }
     }
-    ctx.drawImage(this.canvas, b.x0, b.y0, width, height);
+  }
+
+  private paint(id: string, cx: number, cy: number, key: string, bucket: number, scene: Scene): Chunk {
+    const b = chunkBounds(cx, cy);
+    const chunk = this.chunks.get(id) ?? this.newChunk(id);
+    chunk.key = key;
+    chunk.canvas.width = Math.ceil((b.right - b.left) * bucket);
+    chunk.canvas.height = Math.ceil((b.bottom - b.top) * bucket);
+    const g = chunk.canvas.getContext('2d')!;
+    g.setTransform(bucket, 0, 0, bucket, -b.left * bucket, -b.top * bucket);
+    const p = palette(scene);
+    const seen = explored(scene.world);
+    const world = scene.world;
+    for (let s = 0; s < CHUNK * 2 - 1; s++) {
+      for (let x = cx * CHUNK; x < (cx + 1) * CHUNK; x++) {
+        const y = cy * CHUNK + s - (x - cx * CHUNK);
+        if (y < cy * CHUNK || y >= (cy + 1) * CHUNK || !inWorld(world, x, y)) continue;
+        drawTile(g, scene, p, seen, x, y);
+      }
+    }
+    for (let y = cy * CHUNK; y < (cy + 1) * CHUNK; y++) {
+      for (let x = cx * CHUNK; x < (cx + 1) * CHUNK; x++) {
+        if (inWorld(world, x, y) && isOwned(world, x, y)) drawBorder(g, world, x, y, iso(x, y).x, iso(x, y).y);
+      }
+    }
+    this.rebuilds++;
+    return chunk;
+  }
+
+  private newChunk(id: string): Chunk {
+    if (this.chunks.size >= MAX_CHUNKS) {
+      const oldest = [...this.chunks.entries()].sort((a, b) => a[1].used - b[1].used)[0];
+      oldest[1].canvas.width = 0;
+      this.chunks.delete(oldest[0]);
+    }
+    const chunk = { canvas: document.createElement('canvas'), key: '', used: 0 };
+    this.chunks.set(id, chunk);
+    return chunk;
   }
 }

@@ -1,5 +1,19 @@
-import { CITY, DECOR, HOUSES, THEMES, cityDef, decorDef, houseDef, themeDef } from '../../core/catalog';
-import type { CityKind, DecorKind, HouseKind, ThemeId } from '../../core/types';
+import {
+  CITY,
+  CITY_TECH,
+  DECOR,
+  HOUSES,
+  THEMES,
+  WONDERS,
+  cityDef,
+  decorDef,
+  houseDef,
+  techDef,
+  themeDef,
+  wonderDef,
+} from '../../core/catalog';
+import { cityUnlocked, wonderState } from '../../core/rules';
+import type { CityKind, DecorKind, HouseKind, ThemeId, WonderKind } from '../../core/types';
 import { sfx } from '../../game/audio';
 import { events } from '../../game/events';
 import { checkpoint } from '../../game/history';
@@ -9,7 +23,7 @@ import { num, t } from '../../i18n';
 import { esc } from '../../site';
 import { getMode, setMode, startCustom } from '../town/townView';
 
-type Tab = 'pages' | 'city' | 'nature' | 'styles';
+type Tab = 'pages' | 'city' | 'wonders' | 'nature' | 'styles';
 
 const PAGE_BUILDINGS = HOUSES.filter((h) => h.kind !== 'townhall');
 const THEME_XP_LIMIT = 6;
@@ -36,7 +50,12 @@ const poorToast = (cost: number) => {
   });
 };
 
-function isPlacing(type: 'house' | 'city' | 'decor', kind: string) {
+const techToast = (name: string, tech: string) => {
+  sfx('error');
+  events.emit('toast', { text: t('🔬 {name} needs the {tech} technology. Open the research tree!', { name, tech }), kind: 'bad' });
+};
+
+function isPlacing(type: 'house' | 'city' | 'decor' | 'wonder', kind: string) {
   const mode = getMode();
   return mode.type === type && mode.kind === kind;
 }
@@ -82,17 +101,42 @@ function cardsFor(current: Tab, playerLevel: number): string {
   }
   if (current === 'city') {
     return CITY.map((c) => {
-      const locked = c.level > playerLevel;
+      const locked = !cityUnlocked(state.progress.research, c.kind);
+      const tech = CITY_TECH[c.kind];
       return card({
         attr: 'data-city',
         kind: c.kind,
         emoji: c.emoji,
         name: t(c.name),
-        sub: locked ? levelLabel(c.level) : t(c.desc),
+        sub: locked && tech ? `🔬 ${t(techDef(tech).name)}` : t(c.desc),
         cost: c.cost,
         locked,
         active: isPlacing('city', c.kind),
         extra: 'city-card',
+      });
+    }).join('');
+  }
+  if (current === 'wonders') {
+    return WONDERS.map((w) => {
+      const status = wonderState(state.town, state.progress.research, w);
+      const sub =
+        status === 'locked'
+          ? `🔬 ${t(techDef(w.tech).name)}`
+          : status === 'done'
+            ? t('✓ Built')
+            : status === 'building'
+              ? t('🏗️ Being built…')
+              : esc(t(w.gift));
+      return card({
+        attr: 'data-wonder',
+        kind: w.kind,
+        emoji: w.emoji,
+        name: t(w.name),
+        sub,
+        cost: status === 'ready' ? w.cost : undefined,
+        locked: status === 'locked',
+        active: isPlacing('wonder', w.kind) || status === 'done',
+        extra: 'wonder-card',
       });
     }).join('');
   }
@@ -139,6 +183,23 @@ function choose<K extends string>(def: { name: string; level: number; cost: numb
   else setMode(type === 'house' ? { type, kind: kind as unknown as HouseKind } : { type, kind: kind as unknown as CityKind });
 }
 
+function chooseCity(kind: CityKind) {
+  const def = cityDef(kind);
+  const tech = CITY_TECH[kind];
+  if (tech && !cityUnlocked(state.progress.research, kind)) return techToast(t(def.name), t(techDef(tech).name));
+  choose(def, 'city', kind);
+}
+
+function chooseWonder(kind: WonderKind) {
+  const def = wonderDef(kind);
+  const status = wonderState(state.town, state.progress.research, def);
+  if (status === 'locked') return techToast(t(def.name), t(techDef(def.tech).name));
+  if (status !== 'ready') return;
+  if (state.progress.coins < def.cost) return poorToast(def.cost);
+  sfx('click');
+  setMode(isPlacing('wonder', kind) ? { type: 'idle' } : { type: 'wonder', kind });
+}
+
 function chooseDecor(kind: DecorKind) {
   const def = decorDef(kind);
   if (def.level > level()) return lockedToast(t(def.name), def.level);
@@ -176,7 +237,8 @@ export function mountBuildBar(el: HTMLElement) {
       if (getMode().type !== 'idle') setMode({ type: 'idle' });
       updateBuildBar();
     } else if (d.house) choose(houseDef(d.house as HouseKind), 'house', d.house);
-    else if (d.city) choose(cityDef(d.city as CityKind), 'city', d.city);
+    else if (d.city) chooseCity(d.city as CityKind);
+    else if (d.wonder) chooseWonder(d.wonder as WonderKind);
     else if (d.decor) chooseDecor(d.decor as DecorKind);
     else if (d.theme) chooseTheme(d.theme as ThemeId, e);
   });
@@ -185,15 +247,16 @@ export function mountBuildBar(el: HTMLElement) {
 export function updateBuildBar(force = false) {
   if (!bar) return;
   const playerLevel = level();
-  const costs = tab === 'pages' ? PAGE_BUILDINGS : tab === 'city' ? CITY : tab === 'nature' ? DECOR : [];
+  const costs = tab === 'pages' ? PAGE_BUILDINGS : tab === 'city' ? CITY : tab === 'wonders' ? WONDERS : tab === 'nature' ? DECOR : [];
   const affordable = costs.map((c) => (state.progress.coins >= c.cost ? 1 : 0)).join('');
-  const key = `${tab}|${playerLevel}|${JSON.stringify(getMode())}|${state.town.theme}|${affordable}`;
+  const empire = `${state.progress.research.done.length}|${state.town.wonders.map((w) => `${w.kind}${w.done}`).join()}`;
+  const key = `${tab}|${playerLevel}|${JSON.stringify(getMode())}|${state.town.theme}|${affordable}|${empire}`;
   if (key === renderedKey && !force) return;
   renderedKey = key;
 
   const tabButton = (id: Tab, label: string, hint: string) =>
     `<button data-tab="${id}" class="${tab === id ? 'on' : ''}">${label}${hint ? ` <small>${hint}</small>` : ''}</button>`;
   bar.innerHTML = `
-    <div class="tabs">${tabButton('pages', `🏠 ${t('Pages')}`, t('= website pages'))}${tabButton('city', `🏙️ ${t('City')}`, t('= grows by itself'))}${tabButton('nature', `🌳 ${t('Nature')}`, '')}${tabButton('styles', `🎨 ${t('Styles')}`, '')}</div>
+    <div class="tabs">${tabButton('pages', `🏠 ${t('Pages')}`, t('= website pages'))}${tabButton('city', `🏙️ ${t('City')}`, t('= grows by itself'))}${tabButton('wonders', `🏛️ ${t('Wonders')}`, '')}${tabButton('nature', `🌳 ${t('Nature')}`, '')}${tabButton('styles', `🎨 ${t('Styles')}`, '')}</div>
     <div class="cards">${cardsFor(tab, playerLevel)}</div>`;
 }

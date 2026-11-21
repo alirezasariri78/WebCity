@@ -22,6 +22,7 @@ const houses = () => state.town.houses.length;
 const town = () => state.town;
 const tallest = () => Math.max(0, ...state.town.city.map((b) => b.floors));
 const people = () => population(state.town);
+const discoveries = () => state.progress.research.done.length;
 
 export const STORY: Quest[] = [
   {
@@ -88,6 +89,24 @@ export const STORY: Quest[] = [
     coins: 25,
   },
   {
+    icon: '🔬',
+    title: 'Choose a discovery',
+    desc: 'Press the 🔬 research button at the top and pick a technology. Science will discover it over time.',
+    goal: 1,
+    value: () => yes(!!state.progress.research.current || discoveries() > 0),
+    xp: 30,
+    coins: 20,
+  },
+  {
+    icon: '🚩',
+    title: 'Grow your borders',
+    desc: 'Click the land just outside your borders and claim it. Culture also grows them by itself.',
+    goal: 1,
+    value: stat('tiles'),
+    xp: 30,
+    coins: 20,
+  },
+  {
     icon: '🫧',
     title: 'Treasure hunter',
     desc: 'Bubbles with 🪙 💎 🎁 pop up above your houses. Click 2 of them!',
@@ -95,6 +114,15 @@ export const STORY: Quest[] = [
     value: stat('collected'),
     xp: 30,
     coins: 20,
+  },
+  {
+    icon: '💡',
+    title: 'First discovery',
+    desc: 'Wait until your first technology is discovered. Libraries and schools make science faster.',
+    goal: 1,
+    value: discoveries,
+    xp: 40,
+    coins: 30,
   },
   {
     icon: '🖼️',
@@ -108,11 +136,29 @@ export const STORY: Quest[] = [
   {
     icon: '🎨',
     title: 'Paint something',
-    desc: 'Go inside a house, click any furniture, open the 🎨 Style tab and pick a colour.',
+    desc: 'Go inside a house, pick the 🖌️ Paint tool and tap a piece of furniture.',
     goal: 1,
     value: stat('styled'),
     xp: 35,
     coins: 25,
+  },
+  {
+    icon: '❓',
+    title: 'Explore the ruins',
+    desc: 'Ruins hide surprises. Bring them inside your borders, then click them.',
+    goal: 1,
+    value: stat('ruins'),
+    xp: 50,
+    coins: 30,
+  },
+  {
+    icon: '🎯',
+    title: 'Daily challenge',
+    desc: "Press 🎯 at the top and finish one of today's challenges.",
+    goal: 1,
+    value: () => state.progress.challenges?.claimed.length ?? 0,
+    xp: 40,
+    coins: 30,
   },
   {
     icon: '📮',
@@ -158,6 +204,15 @@ export const STORY: Quest[] = [
     value: () => yes(isStyled(town().style) || !!town().site?.logoImage),
     xp: 50,
     coins: 40,
+  },
+  {
+    icon: '🏛️',
+    title: 'Build a wonder',
+    desc: 'Open the Wonders tab and start one. Every wonder teaches your website a new trick.',
+    goal: 1,
+    value: () => town().wonders.length,
+    xp: 80,
+    coins: 50,
   },
   {
     icon: '⭐',
@@ -261,7 +316,17 @@ export const STORY: Quest[] = [
     xp: 300,
     coins: 300,
   },
+  { icon: '🔬', title: 'Age of discovery', desc: 'Discover 6 technologies.', goal: 6, value: discoveries, xp: 200, coins: 150 },
   { icon: '🌃', title: 'Metropolis', desc: 'Reach 500 people. The biggest era of all.', goal: 500, value: people, xp: 400, coins: 400 },
+  {
+    icon: '🚀',
+    title: 'The Grand Launch',
+    desc: 'Discover The Internet and build the Grand Launch to win the game.',
+    goal: 1,
+    value: () => yes(!!state.progress.won),
+    xp: 800,
+    coins: 800,
+  },
 ];
 
 interface RepeatingQuest {
@@ -293,6 +358,7 @@ export const REPEATING: RepeatingQuest[] = [
   { stat: 'styled', icon: '🎨', title: 'Restyle {n} things', desc: 'Use the 🎨 Style tab or the Design Studio.', base: 5 },
   { stat: 'collected', icon: '🫧', title: 'Pop {n} treasure bubbles', desc: 'Click the bubbles above your houses.', base: 4 },
   { stat: 'previews', icon: '🔮', title: 'Check your site {n} times', desc: 'Open the Magic Window.', base: 2 },
+  { stat: 'tiles', icon: '🚩', title: 'Claim {n} tiles of land', desc: 'Click land next to your borders.', base: 2 },
   {
     stat: 'upgrades',
     icon: '⬆️',

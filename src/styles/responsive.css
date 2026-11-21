@@ -1,7 +1,4 @@
 @media (max-width: 1150px) {
-  .int-body {
-    grid-template-columns: 190px 1fr 340px;
-  }
   .studio-body {
     grid-template-columns: 340px 1fr;
   }
@@ -44,22 +41,6 @@
     top: auto;
     bottom: 90px;
     inset-inline-end: 10px;
-  }
-  .int-body {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  .int-body > * {
-    flex: 0 0 auto;
-  }
-  .palette {
-    max-height: 220px;
-  }
-  .room,
-  .live {
-    min-height: 460px;
   }
   .studio-body {
     grid-template-columns: 1fr;

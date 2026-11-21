@@ -8,6 +8,7 @@ import { THEMES } from './themes';
 
 export * from './schema';
 export { CITY, DECOR, FURNITURE, HOUSES, THEMES };
+export * from './techs';
 export { PICTURES, isBuiltInPicture, pictureRef, resolveImage, type Picture } from './pictures';
 
 const byKey = <K extends string, T>(list: T[], key: (item: T) => K) => new Map<K, T>(list.map((item) => [key(item), item]));
@@ -24,13 +25,9 @@ export const cityDef = (kind: CityKind): CityDef => cityByKind.get(kind)!;
 export const decorDef = (kind: DecorKind): DecorDef => decorByKind.get(kind)!;
 export const themeDef = (id: ThemeId): ThemeDef => themeById.get(id) ?? THEMES[0];
 
-export const MAX_LAND = 28;
 export const MAX_CONTENT_LEVEL = 15;
 export const UPGRADE_LEVEL = 3;
 export const MAX_HOUSE_LEVEL = 10;
-
-/** Side length of the buildable land. Starts at 10×10 and grows with every level. */
-export const landSize = (playerLevel: number) => Math.min(MAX_LAND, 9 + playerLevel);
 
 /** Floors of a page building at each upgrade level (level 10 is a skyscraper). */
 const PAGE_FLOORS = [1, 1, 2, 3, 5, 8, 12, 16, 22, 30];

@@ -1,4 +1,5 @@
 import type { Town } from '../types';
+import { inWorld, isPassable, terrainAt } from './world';
 
 export interface Tile {
   gx: number;
@@ -24,11 +25,11 @@ const NEIGHBOURS = [
  * Shortest roads from the Town Hall to every building (breadth-first search).
  * Buildings and decorations block the way; a building can only be a destination.
  */
-export function buildRoads(town: Town, size: number): RoadNetwork {
+export function buildRoads(town: Town): RoadNetwork {
   const hall = town.houses.find((h) => h.kind === 'townhall');
   if (!hall) return { roads: new Set(), paths: [] };
 
-  const blocked = new Set([...town.houses, ...town.decor, ...(town.city ?? [])].map((o) => key(o.x, o.y)));
+  const blocked = new Set([...town.houses, ...town.decor, ...town.city, ...town.wonders].map((o) => key(o.x, o.y)));
   const previous = new Map<string, Tile | null>([[key(hall.x, hall.y), null]]);
   const queue: Tile[] = [{ gx: hall.x, gy: hall.y }];
 
@@ -39,7 +40,7 @@ export function buildRoads(town: Town, size: number): RoadNetwork {
     for (const [dx, dy] of NEIGHBOURS) {
       const nx = gx + dx;
       const ny = gy + dy;
-      if (nx < 0 || ny < 0 || nx >= size || ny >= size || previous.has(key(nx, ny))) continue;
+      if (!inWorld(town.world, nx, ny) || previous.has(key(nx, ny)) || !isPassable(terrainAt(town.world, nx, ny))) continue;
       previous.set(key(nx, ny), { gx, gy });
       queue.push({ gx: nx, gy: ny });
     }
@@ -47,7 +48,7 @@ export function buildRoads(town: Town, size: number): RoadNetwork {
 
   const roads = new Set<string>();
   const paths: Tile[][] = [];
-  for (const building of [...town.houses, ...(town.city ?? [])]) {
+  for (const building of [...town.houses, ...town.city, ...town.wonders]) {
     if (building === hall || !previous.has(key(building.x, building.y))) continue;
     const path: Tile[] = [];
     for (let tile: Tile | null = { gx: building.x, gy: building.y }; tile; tile = previous.get(key(tile.gx, tile.gy)) ?? null) {

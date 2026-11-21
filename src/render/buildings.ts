@@ -1,6 +1,7 @@
-import { cityDef, cityLook, houseFloors, houseLook, houseScale, isTowerLevel } from '../core/catalog';
-import type { BuildingLook, CityBuilding, House } from '../core/types';
-import { houseAnims, houseArt, houseTop, towerAnims, towerArt, towerTop, type Anim, type Art } from './art';
+import { cityDef, cityLook, houseFloors, houseLook, houseScale, isTowerLevel, wonderDef } from '../core/catalog';
+import { wonderProgress } from '../core/rules';
+import type { BuildingLook, CityBuilding, House, Wonder } from '../core/types';
+import { houseAnims, houseArt, houseTop, scaffoldArt, towerAnims, towerArt, towerTop, type Anim, type Art } from './art';
 
 export interface BuildingVisual {
   key: string;
@@ -52,5 +53,23 @@ export function cityVisual(building: CityBuilding, night: boolean): BuildingVisu
     anims: towerAnims(look, floors, def.trim),
     scale: 1,
     top: def.trim === 'stadium' ? 40 : towerTop(look, floors),
+  };
+}
+
+/** A wonder: scaffolding while it is being built, then a big landmark. */
+export function wonderVisual(wonder: Wonder, night: boolean, now: number): BuildingVisual {
+  const def = wonderDef(wonder.kind);
+  const look: BuildingLook = { wall: def.wall, roof: def.roof, shape: def.shape, emoji: def.emoji };
+  if (!wonder.done) {
+    const step = Math.floor(wonderProgress(wonder, now) * 5);
+    const height = 20 + step * 14;
+    return { key: `scaffold:${step}`, make: () => scaffoldArt(height), anims: [], scale: 1, top: height + 30 };
+  }
+  return {
+    key: `wonder:${wonder.kind}:${night ? 'night' : 'day'}`,
+    make: () => towerArt({ look, floors: def.floors, night, trim: def.shape === 'castle' ? 'stadium' : 'none', seed: 1 }),
+    anims: [...towerAnims(look, def.floors, 'none'), { kind: 'glow', x: 0, y: -towerTop(look, def.floors) }],
+    scale: 1.25,
+    top: towerTop(look, def.floors) * 1.25,
   };
 }

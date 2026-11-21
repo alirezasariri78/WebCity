@@ -1,4 +1,5 @@
 import type { ThemeDef } from '../core/catalog';
+import type { World } from '../core/types';
 import type { Anim, Art } from './art';
 
 export interface SpriteRef {
@@ -17,6 +18,8 @@ export interface SceneObject extends SpriteRef {
   stars?: number;
   /** Height of the object's top above its tile, in world units. */
   top: number;
+  /** Scenery like forests and mountains: drawn, but not clickable. */
+  inert?: boolean;
 }
 
 export interface Villager extends SpriteRef {
@@ -68,9 +71,9 @@ export interface Hover {
 
 export interface Scene {
   theme: ThemeDef;
-  land: number;
-  maxLand: number;
-  nextLevel: number;
+  world: World;
+  /** Changes whenever the ground needs repainting (borders, roads, theme…). */
+  groundKey: string;
   roads: Set<string>;
   roadKey: string;
   /** Paved streets with lane marks once the town becomes a city. */

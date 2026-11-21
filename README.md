@@ -1,83 +1,117 @@
-# Town Builder
+<div align="center">
 
-Build a little town in your browser. When you're done, download it, and it's a real website.
+# 🏙️ WebCity
 
-[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+### Build a city. Get a website.
 
-![A grown city with skyscrapers in the middle](docs/images/metropolis.jpg)
+A city-building game that runs in your browser. Every building you put down is a page,
+every room you decorate is a part of that page, and when you win, you download a real website.
 
-I wanted a way for people who have never written code to make a website without staring at a page builder full of settings. So it's a game instead. Every building you put down is a page. Everything you put inside a building (a title, some text, a photo wall, a contact form) becomes a section of that page. Your town's name is your site's name.
+**[▶ Play it now](https://alirezasariri78.github.io/WebCity/)** · no install, works on your phone
 
-You start with a village of two small houses and a town hall. If you keep playing, people move in, buildings grow a floor at a time, the roads turn into streets with cars on them, and one day you look at it and there are skyscrapers. Your website grows with it and picks up new extras along the way.
+[![CI](https://github.com/alirezasariri78/WebCity/actions/workflows/ci.yml/badge.svg)](https://github.com/alirezasariri78/WebCity/actions/workflows/ci.yml)
+[![Deploy](https://github.com/alirezasariri78/WebCity/actions/workflows/deploy.yml/badge.svg)](https://github.com/alirezasariri78/WebCity/actions/workflows/deploy.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-brightgreen)
 
-## How the game maps to a website
+![A grown city with forests, a lake, mountains and a skyscraper downtown](docs/images/city.jpg)
 
-| In the game                      | On your website                                     |
-| -------------------------------- | --------------------------------------------------- |
-| Town name and logo               | Site name and logo                                  |
-| A page building (Cottage, Café…) | One page. The Town Hall is the home page.           |
-| Furniture inside it              | Parts of the page: titles, text, pictures, forms…   |
-| Town style and the Design Studio | Colours, fonts, corners, spacing, animations        |
-| Your town getting bigger         | New website extras (dark mode switch, progress bar) |
-| 🔮 My website                    | Live preview, then download as a .zip               |
+</div>
 
-![The website made from that town](docs/images/website.jpg)
+## Why this exists
 
-## Playing
+Making a first website is boring in a very specific way: a page full of empty boxes, a sidebar full of settings, and no idea where to start.
+
+I wanted it to feel like the strategy games I grew up with instead. You start with a village of three houses inside a small border. Fog covers the rest of the map. You claim land, research new technologies, build wonders, and slowly the village turns into a city with streets, cars and glass towers.
+
+The trick is that the whole time, you were building a website. The Town Hall is your home page. The café is your menu page. The post office is your contact form. When you finally build the last wonder, the game ends with your site packed in a zip, ready to put online.
+
+## How it plays
+
+**You start small.** A Town Hall, two homes and a tight border. Everything else is hidden under clouds.
+
+**You grow outwards.** Tap land next to your border to buy it, or let culture push the border out by itself. Behind the fog are lakes, forests, mountains, gold, wheat fields and ancient ruins with surprises inside.
+
+**You discover things.** Schools, libraries and good pages make science. Science unlocks a technology tree: Agriculture, Writing, Trade, Medicine, all the way to Computers and The Internet. Each one brings new buildings.
+
+**You build wonders.** Each wonder takes a few real minutes to build and gives your website a new ability:
+
+| Wonder             | Your website gets                                |
+| ------------------ | ------------------------------------------------ |
+| 🌺 Hanging Gardens | a soft glow behind the banner                    |
+| 📚 Great Library   | search across every page                         |
+| 🗼 Lighthouse      | a floating "Contact us" button                   |
+| 🏟️ Colosseum       | tap any picture to see it big                    |
+| 🔭 Observatory     | a dark mode switch                               |
+| 🛰️ Space Needle    | install it on a phone, like an app               |
+| 🚀 Grand Launch    | share previews, robots.txt, sitemap, and you win |
+
+**The city grows while you are away.** Homes add floors, the population moves you from Village to Town to City to Metropolis, and every era lets buildings reach higher.
+
+**There is always something to do today.** Three daily challenges, a daily gift with a streak, quests that teach you one thing at a time, and a Golden Age when you finish all three challenges.
+
+![The research tree](docs/images/research.jpg)
+
+## Decorating is designing
+
+Step inside any building and you are in a room, not a form.
+
+![Decorating a room on the left, the real page updating on the right](docs/images/room.jpg)
+
+- **Add furniture** and it becomes a part of the page. A sign is a title, a bookshelf is a list, a painting is a picture, a mailbox is a contact form.
+- **Drag furniture around** to change the order. Tap ↔ to make it full width, half, or a third, so things sit side by side.
+- **Grab the paint brush**, pick a colour and tap a piece of furniture. That part of the page changes colour. Tap the wall and the whole page does.
+- **Change the mood**: lights for a light or dark page, wallpaper for the background pattern, a round or square rug for the corners, and lettering for the font.
+- **Write on the page itself.** Tap a part, then tap its words and type. No forms to fill in.
+
+Everything you do in the room shows up on the real page next to it, right away.
+
+## On your phone
+
+Most people will open this on a phone, so it is built for that first: one-thumb controls, a tool dock at the bottom, pinch to zoom, and the room and the page take turns on the screen.
+
+<p align="center">
+  <img src="docs/images/mobile-city.jpg" alt="The city on a phone" width="260">
+  &nbsp;&nbsp;
+  <img src="docs/images/mobile-room.jpg" alt="Decorating a room on a phone" width="260">
+</p>
+
+## English and فارسی
+
+![The same city with the game in Persian](docs/images/persian.jpg)
+
+The whole game is in English and Persian. In Persian everything flips right to left, numbers use Persian digits, and text uses the Vazirmatn font.
+
+Your website has its own language setting, separate from the game. Each page, and each part of a page, can be left to right or right to left, so a Persian site with one English section works fine.
+
+## What you get at the end
+
+A zip with one plain HTML file per page and one stylesheet. No framework, no build step. A script is only added when something on the page actually needs one. Drop the folder on Netlify, GitHub Pages or any web host and it is live.
+
+## Run it yourself
 
 You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
+git clone https://github.com/alirezasariri78/WebCity.git
+cd WebCity
 npm install
 npm run dev
 ```
 
-Then open http://localhost:5173. The first time, it asks which language you want and gives you a one-minute tour.
+Open http://localhost:5173. Your progress saves in the browser by itself.
 
-Your town is saved in the browser automatically, and it keeps growing a bit while you're away. If you want a copy you can move to another computer, use ⚙️ → **Save project file**.
+To host your own copy for free: fork the repo, open **Settings → Pages**, set **Source** to **GitHub Actions**, and push. The included workflow builds and publishes it.
 
-## What's in it
+## Under the hood
 
-**Two kinds of buildings.** Page buildings are your website: Town Hall, Cottage, Post Office (contact page), Art Gallery, Shop, Café, Library, Newspaper Office (blog), Cinema, Bank (pricing), and a few more. There's also a **Custom Building** where you pick the roof shape, the colours and the sign yourself, and it starts as a blank page.
+- TypeScript in strict mode, Vite, and zero runtime dependencies.
+- The map is one `<canvas>`. Buildings, trees and cars are drawn once as SVG and kept as GPU bitmaps, and the ground is painted in 8×8 tile chunks that only redraw when something changes. A full metropolis draws in a few milliseconds per frame.
+- The world is generated from a seed, so a save file only stores what you changed.
+- The game rules and the website generator are plain functions with no DOM, which makes them easy to test. There are 300+ tests, and every pull request runs type checks, lint, formatting, tests with coverage and a production build.
 
-City buildings (homes, shops, schools, offices, hospitals, factories, a stadium, a sky tower) don't become pages. They bring people and coins, and they grow taller on their own. Offices can reach 40 floors; the Sky Tower goes higher than anything else.
+More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Want to add a building, a piece of furniture or a language? [CONTRIBUTING.md](CONTRIBUTING.md) walks you through it.
 
-**Eras.** Population moves your town from Village to Town, City and finally Metropolis. Each era raises how tall buildings can get, how far you can upgrade your pages, and unlocks something new for your website.
+## Say hi
 
-**Upgrades.** Click any building to upgrade it. Page buildings go from ★1 to ★10. From ★3 up they turn into towers, and each upgrade gives the page room for more sections.
-
-**Laying out the page.** Any section can take the full row, half, a third or two-thirds, so you can put things side by side. You can also line each one up at the start, middle or end, and move it up or down within its row.
-
-**Styling.** Colours, gradients, background pictures, patterns, 18 fonts, title size, corners, shadows, borders, spacing, input box style, appear animations, the menu bar, and custom CSS if you know it. You can set these for the whole site, for one page, or for one section. The simple view only shows the basics; press **Show all design tools** when you want the rest.
-
-**Forms.** Contact forms and custom forms with any inputs you like: text, email, phone, number, date, dropdowns, pick-one, tick boxes. Each one has a label, a hint and a required switch.
-
-**Keeping you coming back.** Quests that walk you through everything, levels, badges, a daily gift with a streak, and treasure bubbles that pop up over your houses.
-
-## English and Persian
-
-![The same city with the game in Persian](docs/images/persian.jpg)
-
-The whole game is available in English and Persian (فارسی). In Persian, the interface flips to right-to-left, numbers are written in Persian digits, and it uses the Vazirmatn font.
-
-The website direction is set separately from the game language. In the Design Studio you choose the site's language and whether it reads left-to-right or right-to-left. Each page, and each section on a page, can override that. So you can write a Persian site with one English section, or the other way round.
-
-To add another language, copy `src/i18n/fa.ts`, translate the values, and register it in `src/i18n/index.ts`. A test lists any sentence you missed.
-
-## What you get when you download
-
-A .zip with plain HTML and CSS files, one per page, plus a `README.txt` that explains how to put it online for free. Any ordinary web host works too. No build step, no framework, and a script only gets added if something on the page actually needs one. Page titles and descriptions for Google are included.
-
-## Working on the code
-
-```bash
-npm run check   # types, lint, formatting, tests and a production build (same as CI)
-npm test        # just the tests
-```
-
-Every pull request runs `npm run check` on GitHub Actions, so if it passes locally it should pass there too.
-
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the code is organised and why
-- [CONTRIBUTING.md](CONTRIBUTING.md): setup, code style, and how to add new buildings, furniture or translations
-
-It's TypeScript and Vite, with no UI framework and no runtime dependencies. The map is a single canvas: buildings are drawn once as SVG and kept as GPU bitmaps, so even a full metropolis takes a few milliseconds per frame.
+If WebCity made you smile, a ⭐ on the repo helps other people find it. Ideas, bug reports and pull requests are all welcome.

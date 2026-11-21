@@ -166,7 +166,7 @@ async function openProjectFile() {
   if (!file) return;
   const data = parseSave(await file.text());
   if (!data) {
-    events.emit('toast', { text: t('That file is not a Town Builder project.'), kind: 'bad' });
+    events.emit('toast', { text: t('That file is not a WebCity project.'), kind: 'bad' });
     return;
   }
   replaceState(data);

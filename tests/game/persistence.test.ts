@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from '../../src/game/factory';
+import { isBuildable, isOwned, terrainAt } from '../../src/core/rules';
 import { SAVE_KEY, isSaveData, loadSave, migrate, parseSave, writeSave } from '../../src/game/persistence';
 
 describe('saving and loading', () => {
@@ -35,6 +36,29 @@ describe('saving and loading', () => {
     expect(migrated.settings.muted).toBe(false);
     expect(migrated.town.houses).toBe(old.town.houses);
     expect(migrated.town.city).toEqual(old.town.city);
+  });
+
+  it('moves towns from before the big map onto flat, owned land in the middle', () => {
+    const old = newGame();
+    const town = old.town as Partial<typeof old.town>;
+    delete town.world;
+    delete town.wonders;
+    old.town.houses[0].x = 3;
+    old.town.houses[0].y = 3;
+    old.town.city = [{ id: 'c', kind: 'home', x: 9, y: 0, floors: 4, builtAt: 0 }];
+    old.town.decor = [];
+    const migrated = migrate(old);
+    const { world } = migrated.town;
+    expect(migrated.town.wonders).toEqual([]);
+    for (const o of [...migrated.town.houses, ...migrated.town.city]) {
+      expect(isOwned(world, o.x, o.y)).toBe(true);
+      expect(terrainAt(world, o.x, o.y)).toBe('grass');
+    }
+    const hall = migrated.town.houses[0];
+    expect(hall.x).toBeGreaterThan(10);
+    expect(migrated.town.city[0].x - hall.x).toBe(6);
+    expect(isBuildable(world, hall.x + 1, hall.y)).toBe(true);
+    expect(migrated.progress.research).toEqual({ current: null, points: 0, done: [] });
   });
 
   it('keeps existing values when migrating', () => {

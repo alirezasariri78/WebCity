@@ -10,6 +10,9 @@ let renderedKey = '';
 
 export function mountQuestCard(el: HTMLElement) {
   card = el;
+  card.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('button')) card.classList.toggle('open');
+  });
   events.on('quest', ({ done }) => {
     if (done) {
       sfx('badge');

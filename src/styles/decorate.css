@@ -1,0 +1,555 @@
+/* House screen: the room on one side, the real page on the other */
+.int-body {
+  display: flex;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+.int-body.split > * {
+  flex: 1 1 0;
+}
+.room-side,
+.live-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  position: relative;
+}
+.room-side[hidden],
+.live-side[hidden] {
+  display: none;
+}
+.live-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.live-bar .seg,
+.view-switch {
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.view-switch {
+  align-self: center;
+}
+.live-hint {
+  margin-inline-start: auto;
+}
+.tool-hint {
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  text-align: center;
+  min-height: 1.2em;
+}
+.room-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* The room */
+.deco {
+  --wall: #fff;
+  --ink: #23264a;
+  --accent: #7c5cff;
+  --rug-r: 16px;
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: #d9a66e;
+}
+.deco-wall {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 26px;
+  background-color: var(--wall);
+  color: var(--ink);
+  transition: background-color 0.4s;
+  box-shadow: inset 0 -14px 0 -4px rgba(0, 0, 0, 0.08);
+}
+.deco-wall.pat-dots {
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 14%, transparent) 1.5px, transparent 1.6px);
+  background-size: 18px 18px;
+}
+.deco-wall.pat-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.deco-wall.pat-lines {
+  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink) 6%, transparent) 0 14px, transparent 14px 28px);
+}
+.deco-window {
+  position: absolute;
+  top: 16px;
+  inset-inline-start: 22px;
+  width: 64px;
+  height: 54px;
+  border-radius: 10px 10px 4px 4px;
+  background: linear-gradient(180deg, #bfe6ff, #e8f6ff);
+  border: 5px solid #fff;
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.3);
+}
+.deco.dark .deco-window {
+  background: linear-gradient(180deg, #0e1a3a, #233a6b);
+}
+.deco.dark .deco-window::after {
+  content: '✦';
+  position: absolute;
+  inset: 6px 10px auto auto;
+  color: #fff7c2;
+  font-size: 0.7rem;
+}
+.deco-window i {
+  position: absolute;
+  top: -6px;
+  width: 22px;
+  height: 58px;
+  background: var(--accent);
+  opacity: 0.85;
+  border-radius: 4px 4px 12px 12px;
+}
+.deco-window i:first-child {
+  inset-inline-start: -10px;
+}
+.deco-window i:last-child {
+  inset-inline-end: -10px;
+}
+.deco-lamp {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 34px;
+  width: 2px;
+  height: 26px;
+  background: #555;
+}
+.deco-lamp i {
+  position: absolute;
+  top: 24px;
+  left: -14px;
+  width: 30px;
+  height: 16px;
+  border-radius: 16px 16px 4px 4px;
+  background: #ffcc4d;
+  box-shadow: 0 10px 40px 14px rgba(255, 214, 102, 0.45);
+}
+.deco.dark .deco-lamp i {
+  box-shadow: 0 10px 50px 22px rgba(255, 214, 102, 0.55);
+}
+.deco-top {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.6;
+  margin: 46px 0 10px;
+}
+.deco-top .slots {
+  margin-inline-start: 6px;
+}
+
+/* Furniture on shelves. Six columns, like the page. */
+.deco-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 22px 12px;
+  align-items: end;
+}
+.deco-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  border-radius: 16px;
+  outline: none;
+}
+.deco-thing {
+  --c: color-mix(in srgb, var(--wall) 70%, #fff);
+  --ct: var(--ink);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 10px 12px;
+  border-radius: calc(var(--rug-r) / 2 + 6px);
+  background: var(--c);
+  color: var(--ct);
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.06),
+    0 10px 18px -12px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.18s cubic-bezier(0.2, 1.4, 0.4, 1),
+    box-shadow 0.18s,
+    background-color 0.3s;
+}
+.deco-emoji {
+  font-size: 1.9rem;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.2));
+}
+.deco-words {
+  font-size: 0.82rem;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.deco-shelf {
+  height: 7px;
+  margin: 0 -4px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(#a8743f, #8a5a2b);
+  box-shadow: 0 6px 8px -5px rgba(0, 0, 0, 0.45);
+}
+.deco-new {
+  position: absolute;
+  top: -9px;
+  inset-inline-end: 8px;
+  background: var(--gold);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+.deco-item:hover .deco-thing,
+.deco-item:focus-visible .deco-thing {
+  transform: translateY(-3px);
+}
+.deco-item.selected .deco-thing {
+  box-shadow:
+    0 0 0 3px var(--violet),
+    0 14px 24px -12px var(--violet);
+  transform: translateY(-4px) scale(1.02);
+}
+.deco-item.lifted {
+  opacity: 0.35;
+}
+.deco-item.drop-before::before,
+.deco-item.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: 4px;
+  background: var(--violet);
+  box-shadow: 0 0 12px var(--violet);
+}
+.deco-item.drop-before::before {
+  inset-inline-start: -9px;
+}
+.deco-item.drop-after::after {
+  inset-inline-end: -9px;
+}
+.deco-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 300;
+  pointer-events: none;
+  transform: rotate(-3deg) scale(1.05);
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.3));
+}
+.deco-item.dropped .deco-thing {
+  animation: drop-in 0.55s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes drop-in {
+  from {
+    transform: translateY(-60px) scale(0.6);
+    opacity: 0;
+  }
+}
+.splash .deco-thing,
+.deco-wall.splash {
+  animation: splash 0.5s ease-out;
+}
+@keyframes splash {
+  30% {
+    transform: scale(1.06);
+    filter: saturate(1.6);
+  }
+}
+.deco-tools {
+  position: absolute;
+  top: -42px;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--shadow-lg);
+  z-index: 5;
+  white-space: nowrap;
+  animation: popov 0.2s ease-out;
+}
+[dir='rtl'] .deco-tools {
+  translate: 50% 0;
+}
+.deco-tools button {
+  border: 0;
+  background: #f3f1fb;
+  border-radius: 10px;
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.deco-tools button.danger {
+  background: #ffecec;
+}
+.deco-tools small {
+  font-size: 0.68rem;
+  color: var(--ink-2);
+}
+.deco-add {
+  grid-column: span 6;
+  border: 2px dashed color-mix(in srgb, var(--ink) 30%, transparent);
+  background: color-mix(in srgb, var(--wall) 80%, #fff);
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 12px;
+  font: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.deco-add small {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.deco.tool-paint .deco-item,
+.deco.tool-paint .deco-wall {
+  cursor: crosshair;
+}
+.deco.tool-write .deco-item {
+  cursor: text;
+}
+.deco-floor {
+  height: 58px;
+  flex: 0 0 auto;
+  background: repeating-linear-gradient(90deg, #d9a66e 0 70px, #cf9b62 70px 72px);
+  display: grid;
+  place-items: center;
+}
+.deco-rug {
+  width: 58%;
+  height: 30px;
+  border-radius: var(--rug-r);
+  background: repeating-linear-gradient(90deg, var(--accent) 0 12px, color-mix(in srgb, var(--accent) 70%, #fff) 12px 24px);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+  transition: border-radius 0.4s;
+}
+
+/* Tool dock */
+.dock {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+.dock-btn {
+  flex: 1;
+  max-width: 92px;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 14px;
+  padding: 6px 4px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ink);
+}
+.dock-btn span {
+  font-size: 1.35rem;
+}
+.dock-btn small {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.dock-btn:hover {
+  background: #f4f1ff;
+}
+.dock-btn.on {
+  background: linear-gradient(180deg, #a28bff, var(--violet));
+  color: #fff;
+}
+
+/* Paint bar */
+.paint-bar {
+  background: #fff;
+  border-radius: 16px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow);
+}
+.paint-hint {
+  display: none;
+}
+.paints {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px;
+}
+.paint {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  position: relative;
+  font-size: 0.95rem;
+  background: #fff;
+}
+.paint.on {
+  box-shadow: 0 0 0 3px var(--violet);
+  transform: scale(1.12);
+}
+.paint.custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Slide-up sheets (furniture shop, mood, all settings) */
+.sheet {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 74px;
+  max-height: 72%;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 -10px 40px -10px rgba(30, 30, 80, 0.35);
+  animation: sheet-up 0.28s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.sheet[hidden] {
+  display: none;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 6px;
+}
+.sheet-body {
+  overflow-y: auto;
+  padding: 4px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sheet-body .pal-list {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+/* Mood choices */
+.mood-group {
+  display: grid;
+  gap: 6px;
+}
+.mood-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.mood-title small {
+  color: var(--ink-2);
+}
+.mood-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mood {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 74px;
+  border: 0;
+  border-radius: 14px;
+  padding: 8px;
+  background: #f6f5fb;
+  font: inherit;
+  cursor: pointer;
+}
+.mood.on {
+  background: #efe9ff;
+  box-shadow: inset 0 0 0 2px var(--violet);
+}
+.mood-emoji {
+  font-size: 1.4rem;
+}
+.mood small {
+  font-size: 0.75rem;
+}
+
+@media (max-width: 899px) {
+  .int-body {
+    padding: 0 8px 8px;
+  }
+  .deco-grid {
+    gap: 18px 8px;
+  }
+  .deco-thing {
+    flex-direction: column;
+    text-align: center;
+    gap: 4px;
+    padding: 8px 6px;
+    min-height: 70px;
+  }
+  .deco-item[style*='span 2'] .deco-words {
+    display: none;
+  }
+  .deco-window,
+  .deco-lamp {
+    transform: scale(0.8);
+  }
+  .live-hint {
+    display: none;
+  }
+  .sheet {
+    bottom: 70px;
+    max-height: 78%;
+  }
+  .dock-btn small {
+    font-size: 0.66rem;
+  }
+}

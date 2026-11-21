@@ -5,7 +5,7 @@ import type { House, StyleProps, Town } from '../core/types';
 import { siteCSS } from './css';
 import { fileNames, orderedHouses } from './links';
 import { EDIT_CSS, EDIT_SCRIPT, PREVIEW_SCRIPT, REVEAL_SCRIPT } from './scripts';
-import { featureBodyHtml, featureCss, featureNavButtons, featureScript } from './features';
+import { featureBodyHtml, featureCss, featureHead, featureNavButtons, featureScript } from './features';
 import { renderSection } from './sections';
 import { isRtlLanguage, siteDirection, siteText, type SiteText } from './strings';
 import { esc } from './text';
@@ -27,6 +27,8 @@ export interface PageParts {
   lang: string;
   dir: 'ltr' | 'rtl';
   bodyDir?: 'ltr' | 'rtl';
+  /** Extra tags in <head> for unlocked features. */
+  head: string;
 }
 
 const VISIBLE_MENU_LINKS = 5;
@@ -79,9 +81,12 @@ export function pageParts(town: Town, house: House, mode: Mode): PageParts {
   const defaultTitle = house.kind === 'townhall' ? town.name : `${house.name} · ${town.name}`;
 
   return {
-    css: siteCSS(theme, town, { persian, extra: featureCss(features) }) + (mode === 'edit' ? EDIT_CSS : ''),
+    css:
+      siteCSS(theme, town, { persian, extra: featureCss(mode === 'edit' ? features.filter((f) => f !== 'pageFade') : features) }) +
+      (mode === 'edit' ? EDIT_CSS : ''),
     fonts: fontsHref(theme, town, house, persian),
-    featureScript: mode === 'edit' ? '' : featureScript(features, navigates),
+    featureScript: mode === 'edit' ? '' : featureScript(features, navigates, town),
+    head: mode === 'export' ? featureHead(features, town, theme.site.primary) : '',
     lang: site.lang || 'en',
     dir,
     bodyDir: directionOf(house.style),
@@ -92,7 +97,7 @@ export function pageParts(town: Town, house: House, mode: Mode): PageParts {
     title: house.seoTitle?.trim() || defaultTitle,
     description: house.seoDesc?.trim() || site.description?.trim() || town.name,
     usesMotion,
-    body: `<nav class="${navClasses(combined)}"><div class="wrap"><a class="brand" href="index.html">${brand}${esc(town.name)}</a>${menu(town, house, files, text)}${featureNavButtons(features, text)}</div></nav>${featureBodyHtml(features, text)}
+    body: `<nav class="${navClasses(combined)}"><div class="wrap"><a class="brand" href="index.html">${brand}${esc(town.name)}</a>${menu(town, house, files, text)}${featureNavButtons(features, text)}</div></nav>${featureBodyHtml(features, text, town)}
 <main>
 ${sections || empty}
 </main>
@@ -123,7 +128,7 @@ export function pageHTML(town: Town, house: House, mode: Mode): string {
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${town.logo}</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link id="tb-fonts" rel="stylesheet" href="${esc(p.fonts)}">
-${styles}
+${p.head}${styles}
 ${script ? `<script>${script}</script>` : ''}
 </head>
 <body class="${p.bodyClass}"${p.bodyDir ? ` dir="${p.bodyDir}"` : ''}${p.bodyStyle ? ` style="${esc(p.bodyStyle)}"` : ''}>

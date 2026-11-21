@@ -2,19 +2,22 @@ import './styles/index.css';
 import { events } from './game/events';
 import { checkEra, checkProgress, collectAwayEarnings, dailyCheckIn } from './game/progress';
 import { commit, onChange, saveNow, state } from './game/store';
-import { setLang } from './i18n';
+import { setLang, t } from './i18n';
 import { initEffects } from './ui/common/fx';
 import { openDesignStudio } from './ui/designStudio';
-import { closeHouse, doRedo, doUndo, mountHouseEditor, openHouse, renderHouseEditor } from './ui/house/houseEditor';
+import { closeHouse, doRedo, doUndo, mountHouseEditor, openHouse, refreshHouseEditor } from './ui/house/houseEditor';
 import { mountBuildBar, updateBuildBar } from './ui/hud/buildBar';
 import { chooseLanguage, openBadges, openMenu, renameTown, setLanguage, showDailyGift, showLevelUp, showNewEra } from './ui/hud/dialogs';
 import { mountHelper, updateHelper } from './ui/hud/helper';
 import { mountQuestCard, updateQuestCard } from './ui/hud/questCard';
+import { openChallenges, openTechTree, showTechDiscovered, showVictory, showWonderDone } from './ui/hud/empire';
 import { bindAchievementToasts, mountTopBar, updateTopBar } from './ui/hud/topBar';
 import { openMagicWindow } from './ui/magicWindow';
 import { startTour } from './ui/tour';
 import { mountTown, renderTown, start as startTown, stop as stopTown } from './ui/town/townView';
 import type { EraId } from './core/rules';
+import type { TechId, WonderKind } from './core/types';
+import { exportWebsite } from './ui/magicWindow';
 
 setLang(state.settings.lang);
 
@@ -77,6 +80,8 @@ mountTopBar($('.hud'), {
   openBadges,
   openMenu: () => openMenu(tour),
   switchLanguage: () => setLanguage(state.settings.lang === 'fa' ? 'en' : 'fa'),
+  openResearch: openTechTree,
+  openChallenges: () => openChallenges(refreshHud),
 });
 bindAchievementToasts();
 mountQuestCard($('.quest-card'));
@@ -87,11 +92,28 @@ mountHouseEditor(houseEl, { onExit: showTown, onPreview: (id) => openMagicWindow
 
 events.on('levelup', ({ level }) => setTimeout(() => showLevelUp(level), 400));
 events.on('era', ({ era }) => setTimeout(() => showNewEra(era as EraId), 600));
+events.on('tech', ({ id }) => setTimeout(() => showTechDiscovered(id as TechId), 300));
+events.on('wonder', ({ kind }) =>
+  setTimeout(() => {
+    if (kind === 'launch')
+      showVictory(
+        () => void exportWebsite(),
+        () => openMagicWindow(),
+      );
+    else showWonderDone(kind as WonderKind);
+  }, 300),
+);
+events.on('golden', () =>
+  events.emit('toast', { text: t('✨ A Golden Age begins! Everything makes 50% more for a while.'), kind: 'good' }),
+);
+events.on('border', ({ tiles }) =>
+  events.emit('toast', { text: t('🗺️ Your borders grew by {n} tiles!', { n: tiles.length }), kind: 'info' }),
+);
 
 onChange(() => {
   checkEra();
   refreshHud();
-  if (insideHouse) renderHouseEditor();
+  if (insideHouse) refreshHouseEditor();
   else renderTown();
 });
 

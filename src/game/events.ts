@@ -7,6 +7,10 @@ export interface GameEvents {
   quest: { done: boolean };
   era: { era: string };
   grew: { id: string };
+  tech: { id: string };
+  border: { tiles: number[] };
+  wonder: { id: string; kind: string };
+  golden: { until: number };
 }
 
 type Handler<T> = (payload: T) => void;

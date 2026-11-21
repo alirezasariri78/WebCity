@@ -84,9 +84,16 @@ describe('website extras', () => {
 
     const city = town({ city: [building('home', 20), building('home', 20)] });
     expect(eraFor(population(city)).id).toBe('city');
-    expect(activeFeatures(city)).toEqual(['backToTop', 'readingBar', 'darkToggle']);
-
-    city.site = { features: { darkToggle: false } };
     expect(activeFeatures(city)).toEqual(['backToTop', 'readingBar']);
+
+    city.site = { features: { readingBar: false } };
+    expect(activeFeatures(city)).toEqual(['backToTop']);
+  });
+
+  it('unlocks wonder extras only when the wonder is finished', () => {
+    const t = town({ wonders: [{ id: 'w', kind: 'library', x: 1, y: 1, startedAt: 0, done: false }] });
+    expect(activeFeatures(t)).not.toContain('search');
+    t.wonders[0].done = true;
+    expect(activeFeatures(t)).toContain('search');
   });
 });

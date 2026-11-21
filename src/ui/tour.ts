@@ -35,6 +35,18 @@ export const TOUR_STEPS: Step[] = [
     text: 'Homes, shops and offices bring people and coins. They grow taller by themselves over time, all the way to skyscrapers.',
   },
   {
+    target: '[data-tour="research"]',
+    emoji: '🔬',
+    title: 'Research',
+    text: 'Science discovers new buildings and wonders, like in a strategy game. Choose what to learn next here.',
+  },
+  {
+    target: '.town-canvas',
+    emoji: '🚩',
+    title: 'Your borders',
+    text: 'The glowing line is your border. Tap land outside it to claim more, or let culture grow it. The fog hides land you have not explored yet, with ruins to find.',
+  },
+  {
     target: '.quest-card',
     emoji: '📜',
     title: 'Quests',
@@ -45,6 +57,12 @@ export const TOUR_STEPS: Step[] = [
     emoji: '👥',
     title: 'Your town grows',
     text: 'More people means a bigger era: Village, Town, City, Metropolis. Each era lets buildings grow higher and gives your website new extras.',
+  },
+  {
+    target: '[data-tour="challenges"]',
+    emoji: '🎯',
+    title: 'Daily challenges',
+    text: 'Three new challenges every day. Finish all three for a Golden Age.',
   },
   {
     target: '[data-tour="design"]',

@@ -148,7 +148,8 @@ export interface House {
   seoDesc?: string;
 }
 
-export type CityKind = 'home' | 'shop' | 'school' | 'office' | 'hospital' | 'factory' | 'stadium' | 'landmark' | 'custom';
+export type CityKind =
+  'home' | 'shop' | 'farm' | 'school' | 'office' | 'hospital' | 'theater' | 'university' | 'factory' | 'stadium' | 'landmark' | 'custom';
 
 /** A building that is part of the town but not a page: homes, offices, schools… They grow taller over time. */
 export interface CityBuilding {
@@ -171,7 +172,51 @@ export interface Decor {
 
 export type TextDirection = 'auto' | 'ltr' | 'rtl';
 
-export type SiteFeature = 'backToTop' | 'readingBar' | 'darkToggle' | 'pageFade';
+export type SiteFeature =
+  'backToTop' | 'readingBar' | 'darkToggle' | 'pageFade' | 'search' | 'contactFab' | 'heroGlow' | 'lightbox' | 'installable' | 'seoPack';
+
+export type Terrain = 'grass' | 'forest' | 'hill' | 'mountain' | 'water' | 'sand';
+
+export type ResourceKind = 'wheat' | 'fish' | 'gold' | 'gems' | 'marble' | 'crystal';
+
+export type TechId =
+  | 'agriculture'
+  | 'writing'
+  | 'trade'
+  | 'medicine'
+  | 'philosophy'
+  | 'engineering'
+  | 'banking'
+  | 'printing'
+  | 'industry'
+  | 'electricity'
+  | 'computers'
+  | 'internet';
+
+export type WonderKind = 'gardens' | 'library' | 'lighthouse' | 'colosseum' | 'observatory' | 'needle' | 'launch';
+
+/** The map around the town. Terrain comes from the seed, so only what the player changed is saved. */
+export interface World {
+  seed: number;
+  size: number;
+  /** Tiles inside the borders, as `y * size + x`. */
+  owned: number[];
+  /** Forest tiles that were cut down to make room. */
+  cleared: number[];
+  /** Ruins already explored. */
+  ruins: number[];
+  /** Culture saved up towards the next tile. */
+  culture: number;
+}
+
+export interface Wonder {
+  id: string;
+  kind: WonderKind;
+  x: number;
+  y: number;
+  startedAt: number;
+  done: boolean;
+}
 
 export interface SiteSettings {
   description?: string;
@@ -180,6 +225,8 @@ export interface SiteSettings {
   lang?: string;
   dir?: TextDirection;
   hideBuiltWith?: boolean;
+  /** Where the site lives once it is online, for the sitemap. */
+  url?: string;
   /** Extras unlocked as the city grows. `false` means the player switched it off. */
   features?: Partial<Record<SiteFeature, boolean>>;
 }
@@ -191,6 +238,8 @@ export interface Town {
   houses: House[];
   decor: Decor[];
   city: CityBuilding[];
+  world: World;
+  wonders: Wonder[];
   style?: StyleProps;
   site?: SiteSettings;
 }
@@ -210,6 +259,24 @@ export interface Stats {
   styled: number;
   cityBuilt: number;
   grown: number;
+  tiles: number;
+  techs: number;
+  ruins: number;
+  wonders: number;
+  painted: number;
+}
+
+export interface Research {
+  current: TechId | null;
+  points: number;
+  done: TechId[];
+}
+
+export interface ChallengeDay {
+  day: string;
+  /** Picked challenge ids with the stat value when the day started. */
+  picks: { id: string; base: number }[];
+  claimed: string[];
 }
 
 export interface Progress {
@@ -224,6 +291,11 @@ export interface Progress {
   stats: Stats;
   seenLevel: number;
   toolsUsed?: string[];
+  research: Research;
+  challenges?: ChallengeDay;
+  /** Golden Age: everything produces more until this time. */
+  goldenUntil?: number;
+  won?: boolean;
 }
 
 export type Lang = 'en' | 'fa';

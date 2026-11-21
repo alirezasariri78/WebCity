@@ -1,6 +1,7 @@
 import { dailyCoins, dayKey, nextStreak, offlineMinutes } from '../../core/rules';
 import { state } from '../store';
 import { growWhileAway } from './city';
+import { catchUpWhileAway } from './empire';
 import { earnPassive } from './rewards';
 import { income, visitors } from './status';
 
@@ -34,5 +35,6 @@ export function collectAwayEarnings(now = Date.now()): AwayEarnings | null {
   const coins = Math.floor(minutes * income() * 1.5);
   earnPassive(coins);
   const newFloors = growWhileAway(minutes).length;
+  catchUpWhileAway(minutes);
   return { minutes, coins, visitors: Math.floor((visitors() * minutes) / 60), newFloors };
 }

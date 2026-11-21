@@ -7,7 +7,7 @@ const isNeighbour = (a: { gx: number; gy: number }, b: { gx: number; gy: number 
 describe('roads', () => {
   it('connects every house to the Town Hall with a walkable path', () => {
     const t = town({ decor: [], houses: [house('townhall', 3, 3), house('cottage', 0, 0), house('post', 6, 2)] });
-    const { paths } = buildRoads(t, 7);
+    const { paths } = buildRoads(t);
     expect(paths).toHaveLength(2);
     for (const path of paths) {
       expect(path[0]).toEqual({ gx: 3, gy: 3 });
@@ -17,7 +17,7 @@ describe('roads', () => {
 
   it('finds the shortest way', () => {
     const t = town({ decor: [], houses: [house('townhall', 0, 0), house('cottage', 3, 0)] });
-    const { paths, roads } = buildRoads(t, 7);
+    const { paths, roads } = buildRoads(t);
     expect(paths[0]).toHaveLength(4);
     expect(roads).toEqual(new Set(['1,0', '2,0']));
   });
@@ -27,7 +27,7 @@ describe('roads', () => {
       houses: [house('townhall', 0, 0), house('cottage', 4, 0)],
       decor: [{ id: 'd', kind: 'tree', x: 2, y: 0 }],
     });
-    const { roads } = buildRoads(t, 7);
+    const { roads } = buildRoads(t);
     expect(roads.has('2,0')).toBe(false);
     expect(roads.has('0,0')).toBe(false);
     expect(roads.has('4,0')).toBe(false);
@@ -39,21 +39,23 @@ describe('roads', () => {
       decor: [
         { id: 'a', kind: 'tree', x: 5, y: 6 },
         { id: 'b', kind: 'tree', x: 6, y: 5 },
+        { id: 'c', kind: 'tree', x: 7, y: 6 },
+        { id: 'd', kind: 'tree', x: 6, y: 7 },
       ],
     });
-    expect(buildRoads(t, 7).paths).toHaveLength(0);
+    expect(buildRoads(t).paths).toHaveLength(0);
   });
 
-  it('stays inside the land', () => {
+  it('stays inside the world', () => {
     const t = town({ decor: [], houses: [house('townhall', 0, 0), house('cottage', 2, 2)] });
-    for (const key of buildRoads(t, 3).roads) {
+    for (const key of buildRoads(t).roads) {
       const [x, y] = key.split(',').map(Number);
       expect(x).toBeGreaterThanOrEqual(0);
-      expect(y).toBeLessThan(3);
+      expect(y).toBeGreaterThanOrEqual(0);
     }
   });
 
   it('handles a town without a Town Hall', () => {
-    expect(buildRoads(town({ houses: [] }), 7)).toEqual({ roads: new Set(), paths: [] });
+    expect(buildRoads(town({ houses: [] }))).toEqual({ roads: new Set(), paths: [] });
   });
 });

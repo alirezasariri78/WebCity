@@ -1,5 +1,6 @@
 import { incomePerTick, levelFromXp, levelProgress, rateTown, visitorsPerHour, type Rating } from '../../core/rules';
 import { state, version } from '../store';
+import { yields } from './empire';
 
 export const level = () => levelFromXp(state.progress.xp);
 export const levelInfo = () => levelProgress(state.progress.xp);
@@ -13,4 +14,5 @@ export function rating(): Rating {
 }
 
 export const visitors = () => visitorsPerHour(state.town, rating().score);
-export const income = () => incomePerTick(state.town, rating().score);
+/** Coins per income tick (every 20 seconds): visitors plus a third of the gold made each minute. */
+export const income = () => incomePerTick(state.town, rating().score) + Math.round(yields().gold / 3);

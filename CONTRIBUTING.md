@@ -40,6 +40,7 @@ Most new content is just data:
 
 - **A new piece of furniture**: add it to `src/core/catalog/furniture.ts`, add its kind to `FurnitureKind` in `src/core/types.ts`, and add a renderer in `src/site/sections.ts`. The tests check that every kind renders, escapes text, and has defaults.
 - **A new house**: add it to `src/core/catalog/houses.ts` and `HouseKind`. Its drawing comes from its `roof3d` shape and colours.
+- **A new technology or wonder**: add it to `src/core/catalog/techs.ts`. A technology lists what it `requires` and its `tier` (column). A wonder names its technology, cost, build time and what it gives; if it unlocks a website feature, add it to `SiteFeature`, `WONDER_FEATURES` and `src/site/features.ts`.
 - **A new city building**: add it to `src/core/catalog/city.ts` and `CityKind`. Set how many people live on each floor, how many coins it makes, and its tallest height.
 - **A new style control**: add it to `src/core/design/controls.ts`, convert it in `src/core/design/css.ts`, and use the CSS variable in `src/site/base.css`.
 

@@ -13,6 +13,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#5b8def',
     height: 46,
     roof3d: 'dome',
+    yields: { science: 2, culture: 1, food: 1 },
     template: [
       { kind: 'sign', props: { title: 'Welcome to our town!', subtitle: 'This is the home page of my new website.' } },
       { kind: 'board' },
@@ -31,6 +32,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#e8634a',
     height: 30,
     roof3d: 'pyramid',
+    yields: { culture: 1 },
     template: [
       { kind: 'sign', props: { title: 'About me', subtitle: 'A few words about who I am.' } },
       { kind: 'board', props: { heading: 'My story', text: 'Write your story here.' } },
@@ -48,6 +50,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#7c5cff',
     height: 34,
     roof3d: 'pyramid',
+    yields: { culture: 1 },
     template: [{ kind: 'sign', props: { title: 'My page', subtitle: 'Add anything you like below.' } }],
   },
   {
@@ -62,6 +65,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#d84343',
     height: 34,
     roof3d: 'flat',
+    yields: { gold: 1 },
     template: [{ kind: 'sign', props: { title: 'Contact', subtitle: 'We would love to hear from you.' } }, { kind: 'mailbox' }],
   },
   {
@@ -76,6 +80,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#8e5bd8',
     height: 36,
     roof3d: 'pyramid',
+    yields: { culture: 2 },
     template: [{ kind: 'sign', props: { title: 'Gallery', subtitle: 'Some of our favourite moments.' } }, { kind: 'photowall' }],
   },
   {
@@ -90,6 +95,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#2e9e6a',
     height: 32,
     roof3d: 'flat',
+    yields: { gold: 2 },
     template: [
       { kind: 'sign', props: { title: 'Shop', subtitle: 'Hand-picked things you will love.' } },
       { kind: 'product' },
@@ -108,6 +114,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#c0793c',
     height: 30,
     roof3d: 'flat',
+    yields: { food: 1, gold: 1 },
     template: [
       { kind: 'sign', props: { title: 'Our menu', subtitle: 'Fresh, warm and made today.' } },
       { kind: 'list', props: { title: 'Today', items: 'Coffee – $3\nCake – $4\nTea – $2' } },
@@ -126,6 +133,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#3f51b5',
     height: 38,
     roof3d: 'dome',
+    yields: { science: 3 },
     template: [{ kind: 'sign', props: { title: 'Help', subtitle: 'Everything you might want to know.' } }, { kind: 'faq' }],
   },
   {
@@ -140,6 +148,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#6a3fb5',
     height: 64,
     roof3d: 'spire',
+    yields: { science: 2, culture: 1 },
     template: [{ kind: 'banner' }, { kind: 'cards' }, { kind: 'quote' }],
   },
   {
@@ -154,6 +163,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#455a64',
     height: 36,
     roof3d: 'flat',
+    yields: { culture: 2, science: 1 },
     template: [
       { kind: 'sign', props: { title: 'Blog', subtitle: 'News, stories and ideas.' } },
       { kind: 'blog' },
@@ -172,6 +182,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#b71c1c',
     height: 36,
     roof3d: 'flat',
+    yields: { culture: 3 },
     template: [{ kind: 'sign', props: { title: 'Videos', subtitle: 'Grab some popcorn 🍿' } }, { kind: 'video' }],
   },
   {
@@ -186,6 +197,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#00796b',
     height: 40,
     roof3d: 'pyramid',
+    yields: { science: 1, gold: 1 },
     template: [
       { kind: 'sign', props: { title: 'About us', subtitle: 'The people who make it happen.' } },
       { kind: 'team' },
@@ -204,6 +216,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#37474f',
     height: 42,
     roof3d: 'dome',
+    yields: { gold: 3 },
     template: [{ kind: 'sign', props: { title: 'Pricing', subtitle: 'Simple, honest prices.' } }, { kind: 'pricing' }, { kind: 'faq' }],
   },
   {
@@ -218,6 +231,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#e53935',
     height: 62,
     roof3d: 'spire',
+    yields: { food: 1, culture: 1 },
     template: [{ kind: 'sign', props: { title: 'Visit us', subtitle: 'We would love to see you.' } }, { kind: 'map' }, { kind: 'hours' }],
   },
   {
@@ -232,6 +246,7 @@ export const HOUSES: HouseDef[] = [
     roof: '#5e35b1',
     height: 54,
     roof3d: 'castle',
+    yields: { culture: 4 },
     template: [
       { kind: 'banner', props: { title: 'Our story', label: 'Contact us' } },
       { kind: 'timeline' },
