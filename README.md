@@ -7,7 +7,9 @@
 A city-building game that runs in your browser. Every building you put down is a page,
 every room you decorate is a part of that page, and when you win, you download a real website.
 
-**[▶ Play it now](https://alirezasariri78.github.io/WebCity/)** · no install, works on your phone
+<a href="https://alirezasariri78.github.io/WebCity/"><img src="https://img.shields.io/badge/%E2%96%B6%20Play%20WebCity%20now-7c5cff?style=for-the-badge" alt="Play WebCity now" height="44"></a>
+
+**[alirezasariri78.github.io/WebCity](https://alirezasariri78.github.io/WebCity/)** · free, no install, works on your phone
 
 [![CI](https://github.com/alirezasariri78/WebCity/actions/workflows/ci.yml/badge.svg)](https://github.com/alirezasariri78/WebCity/actions/workflows/ci.yml)
 [![Deploy](https://github.com/alirezasariri78/WebCity/actions/workflows/deploy.yml/badge.svg)](https://github.com/alirezasariri78/WebCity/actions/workflows/deploy.yml)
@@ -87,6 +89,10 @@ Your website has its own language setting, separate from the game. Each page, an
 ## What you get at the end
 
 A zip with one plain HTML file per page and one stylesheet. No framework, no build step. A script is only added when something on the page actually needs one. Drop the folder on Netlify, GitHub Pages or any web host and it is live.
+
+## Play
+
+Open **https://alirezasariri78.github.io/WebCity/** on your computer or phone. Your city is saved in that browser, so you can close the tab and come back later. On a phone you can also use "Add to Home Screen" and play it like an app.
 
 ## Run it yourself
 
